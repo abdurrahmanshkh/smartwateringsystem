@@ -1,12 +1,34 @@
 <script lang="ts">
-	import { Card, Chart} from 'flowbite-svelte';
+	import { Card, Chart } from 'flowbite-svelte';
+	import { onMount } from 'svelte';
 
-	const options = {
+	let pumpValues = [];
+
+	//call function on mount
+	onMount(() => {
+		fetchRecentData();
+	});
+
+	// Function to fetch the 10 most recent values for graphs
+	async function fetchRecentData() {
+		const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=10';
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+			const feeds = data.feeds;
+
+			pumpValues = feeds.map((feed) => feed.field2);
+		} catch (error) {
+			console.error('Error fetching recent data:', error);
+		}
+	}
+
+	$: options = {
 		series: [
 			{
 				name: 'Triggered',
 				color: '#31C48D',
-				data: ['5', '7', '6', '4', '5', '3','6']
+				data: pumpValues
 			}
 		],
 		chart: {
@@ -56,10 +78,14 @@
 					cssClass: 'text-xs font-normal fill-gray-500 dark:fill-gray-400'
 				},
 				formatter: function (value) {
-					return value;
+					if (value === 1) {
+						return 'ON';
+					} else if (value === 0) {
+						return 'OFF';
+					}
 				}
 			},
-			categories: ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'],
+			categories: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 			axisTicks: {
 				show: false
 			},
@@ -88,15 +114,17 @@
 	};
 </script>
 
-<Card class="max-w-full border-amber-100 bg-amber-50 md:m-0 mt-2">
-	<span class="border-b border-amber-400 pb-4 md:text-xl font-semibold text-amber-900">
+<Card class="mt-2 max-w-full border-amber-100 bg-amber-50 md:m-0">
+	<span class="border-b border-amber-400 pb-4 font-semibold text-amber-900 md:text-xl">
 		Water Pump Status
 	</span>
 	<div>
 		<div class="flex justify-between border-b border-amber-400 py-4 dark:border-gray-700">
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Status</dt>
-				<dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">OFF</dd>
+				<dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">
+					{pumpValues[0] === '1' ? 'ON' : 'OFF'}
+				</dd>
 			</dl>
 			<div>
 				<span
@@ -108,21 +136,25 @@
 		</div>
 		<div class="grid grid-cols-3 border-b border-amber-400 py-4">
 			<dl>
+				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">On</dt>
+				<dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">
+					{pumpValues.filter((value) => value === '1').length} Times
+				</dd>
+			</dl>
+			<dl>
+				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Off</dt>
+				<dd class="text-xl font-bold leading-none text-yellow-500 dark:text-yellow-400">
+					{pumpValues.filter((value) => value === '0').length} Times
+				</dd>
+			</dl>
+			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Average</dt>
-				<dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">5</dd>
-			</dl>
-			<dl>
-				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Maximum</dt>
-				<dd class="text-xl font-bold leading-none text-yellow-500 dark:text-yellow-400">7</dd>
-			</dl>
-			<dl>
-				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Minimum</dt>
-				<dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">3</dd>
+				<dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">2 Times</dd>
 			</dl>
 		</div>
 	</div>
 
-	<div class="pt-4 max-w-full">
-		<Chart {options}/>
+	<div class="max-w-full pt-4">
+		<Chart {options} />
 	</div>
 </Card>

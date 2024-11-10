@@ -1,11 +1,31 @@
 <script lang="ts">
 	import { Card, Chart } from 'flowbite-svelte';
+	import { onMount } from 'svelte';
 
 	let chart: ApexCharts;
 
-	const initialData = [1350, 1375, 1500, 1435, 1335, 1450,];
+	let moistureValues = [];
 
-	let options = {
+	//call function on mount
+	onMount(() => {
+		fetchRecentData();
+	});
+
+	// Function to fetch the 10 most recent values for graphs
+	async function fetchRecentData() {
+		const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=10';
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+			const feeds = data.feeds;
+
+			moistureValues = feeds.map((feed) => feed.field1);
+		} catch (error) {
+			console.error('Error fetching recent data:', error);
+		}
+	}
+
+	$: options = {
 		chart: {
 			height: '400px',
 			maxWidth: '100%',
@@ -27,7 +47,7 @@
 		series: [
 			{
 				name: 'Moisture Level',
-				data: initialData,
+				data: moistureValues,
 				color: '#1A56DB'
 			}
 		]
@@ -42,7 +62,9 @@
 		<div class="flex justify-between border-b border-primary-400 py-4 dark:border-gray-700">
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Current</dt>
-				<dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">1405</dd>
+				<dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">
+					{moistureValues[9]}
+				</dd>
 			</dl>
 			<div>
 				<span
@@ -55,15 +77,15 @@
 		<div class="grid grid-cols-3 border-b border-primary-400 py-4">
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Optimal</dt>
-				<dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">1450</dd>
+				<dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">800</dd>
 			</dl>
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Wet</dt>
-				<dd class="text-xl font-bold leading-none text-yellow-500 dark:text-yellow-400">1650</dd>
+				<dd class="text-xl font-bold leading-none text-yellow-500 dark:text-yellow-400">600</dd>
 			</dl>
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Dry</dt>
-				<dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">1250</dd>
+				<dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">1000</dd>
 			</dl>
 		</div>
 	</div>
