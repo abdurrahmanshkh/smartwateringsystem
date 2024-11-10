@@ -4,9 +4,10 @@
 
 	let pumpValues = [];
 
-	//call function on mount
+	//call function on mount and update every 5 seconds
 	onMount(() => {
 		fetchRecentData();
+		setInterval(fetchRecentData, 5000);
 	});
 
 	// Function to fetch the 10 most recent values for graphs
@@ -123,7 +124,7 @@
 			<dl>
 				<dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Status</dt>
 				<dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">
-					{pumpValues[0] === '1' ? 'ON' : 'OFF'}
+					{pumpValues[9] === '1' ? 'ON' : 'OFF'}
 				</dd>
 			</dl>
 			<div>

@@ -3,41 +3,38 @@
 	import Waterpump from './waterpump.svelte';
 	import { Alert, Card, Button } from 'flowbite-svelte';
 	import { InfoCircleSolid } from 'flowbite-svelte-icons';
+	import { Range, Label } from 'flowbite-svelte';
 	import { onMount } from 'svelte';
 
 	let moistureLevel = 0;
-	let pumpStatus = 0;
+	let pumpStatus = 'OFF';
 	let systemStatus = 0; // 0 = Off, 1 = On
 	let threshold = 0; // Default threshold value
 
-	// Call function on mount and update every 5 seconds
+	// Call function on mount
 	onMount(() => {
-		fetchLatestData();
-		setInterval(fetchLatestData, 5000);
+		fetchInitialData();
 	});
 
-	// Function to fetch the most recent data
-	async function fetchLatestData() {
+	// Fetch initial data including system status and threshold
+	async function fetchInitialData() {
 		const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=1';
 		try {
 			const response = await fetch(url);
 			const data = await response.json();
 			const feed = data.feeds[0];
-
 			moistureLevel = feed.field1;
-			pumpStatus = feed.field2;
-			systemStatus = feed.field3;
-			threshold = feed.field4;
+			pumpStatus = feed.field2 === '1' ? 'ON' : 'OFF';
+			systemStatus = parseInt(feed.field3) || 0; // Set initial system status
+			threshold = parseInt(feed.field4) || 800; // Set initial threshold value
 		} catch (error) {
-			console.error('Error fetching latest data:', error);
+			console.error('Error fetching initial data:', error);
 		}
 	}
 
-	// Function to update system status and threshold
 	async function updateSystemSettings() {
 		const apiKey = 'CV5WWIPTAVEW6RMD';
-		const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field1=${moistureLevel}&field2=${pumpStatus}&field3=${systemStatus}&field4=${threshold}`;
-
+		const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field1=${moistureLevel}&field2=${pumpStatus === 'ON' ? 1 : 0}&field3=${systemStatus}&field4=${threshold}`;
 		try {
 			const response = await fetch(url);
 			if (response.ok) {
@@ -50,14 +47,9 @@
 		}
 	}
 
-	// Function for system status button
 	function toggleSystemStatus() {
+		systemStatus = systemStatus === 1 ? 0 : 1;
 		updateSystemSettings();
-		if (systemStatus == 0) {
-			systemStatus = 1;
-		} else {
-			systemStatus = 0;
-		}
 	}
 </script>
 
@@ -71,14 +63,21 @@
 	<div class="gap-2 md:grid md:grid-cols-2">
 		<Soilmoisture />
 		<Waterpump />
+		<Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-blue-100 md:mt-0">
+			<div class="col-span-2 border-blue-400 text-xl font-bold text-blue-900">
+				System Status: {systemStatus === 1 ? 'ON' : 'OFF'}
+			</div>
+			<Button on:click={toggleSystemStatus} color="blue">
+				{systemStatus === 1 ? 'Turn System Off' : 'Turn System On'}
+			</Button>
+		</Card>
+		<Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-red-100 md:mt-0">
+			<Label class="col-span-2">
+				Moisture Threshold
+				<Range id="range-minmax" min="300" max="1200" bind:value={threshold} />
+				<p>Value: {threshold}</p>
+			</Label>
+			<Button on:click={updateSystemSettings} color="red">Update Threshold</Button>
+		</Card>
 	</div>
-	<!-- Card for switching on and off the system -->
-	<Card padding="none" class="max-w-full">
-		<div class="border-b border-primary-400 pb-4 text-xl font-semibold text-primary-900">
-			System Status
-			<button on:click={toggleSystemStatus}>
-				{systemStatus == 1 ? 'Turn Off System' : 'Turn On System'}
-			</button>
-		</div>
-	</Card>
 </main>

@@ -192,14 +192,11 @@
 		</button>
 
 		<div class="slider-container">
-			<label>Moisture Threshold: {threshold}</label>
-			<input
-				type="range"
-				min="300"
-				max="1500"
-				bind:value={threshold}
-				on:change={updateSystemSettings}
-			/>
+			<label>
+				Moisture Threshold: {threshold}
+				<input type="range" min="300" max="1500" bind:value={threshold} />
+				<button on:click={updateSystemSettings}>Update</button>
+			</label>
 		</div>
 	</div>
 

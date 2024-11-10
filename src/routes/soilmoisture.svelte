@@ -6,9 +6,10 @@
 
 	let moistureValues = [];
 
-	//call function on mount
+	//call function on mount and update every 5 seconds
 	onMount(() => {
 		fetchRecentData();
+		setInterval(fetchRecentData, 5000);
 	});
 
 	// Function to fetch the 10 most recent values for graphs
