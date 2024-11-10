@@ -14,6 +14,7 @@
 	// Call function on mount
 	onMount(() => {
 		fetchInitialData();
+		setInterval(fetchLatestData, 5000);
 	});
 
 	// Fetch initial data including system status and threshold
@@ -29,6 +30,19 @@
 			threshold = parseInt(feed.field4) || 800; // Set initial threshold value
 		} catch (error) {
 			console.error('Error fetching initial data:', error);
+		}
+	}
+
+	async function fetchLatestData() {
+		const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=1';
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+			const feed = data.feeds[0];
+			moistureLevel = feed.field1;
+			pumpStatus = feed.field2 === '1' ? 'ON' : 'OFF';
+		} catch (error) {
+			console.error('Error fetching latest data:', error);
 		}
 	}
 
