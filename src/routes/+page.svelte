@@ -73,6 +73,7 @@
 
 	function toggleSystemStatus() {
 		systemStatus = systemStatus === 1 ? 0 : 1;
+		pumpStatus = 'OFF';
 		updateSystemSettings();
 	}
 </script>
