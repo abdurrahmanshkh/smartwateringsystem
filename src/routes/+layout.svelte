@@ -3,6 +3,8 @@
 	import { Card } from 'flowbite-svelte';
 </script>
 
+<script defer data-domain="abdurrahmanshkh.pages.dev" src="https://plausible.io/js/script.js"></script>
+
 <header class="p-2">
 	<Card
 		class="max-w-full border-gray-300 bg-gray-200 text-center font-bold text-gray-800 md:text-xl"
