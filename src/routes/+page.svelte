@@ -9,14 +9,14 @@
     let moistureLevel = 0;
     let pumpStatus = 'OFF';
     let systemStatus = 0; // 0 = Off, 1 = On
-    let threshold = 300; // Default threshold value
+    let threshold = 250; // Default threshold value
     let updating = false;
     let error = '';
 
     // Call function on mount
     onMount(() => {
         fetchInitialData();
-        setInterval(fetchLatestData, 3000); // Reduced to 10 seconds for better responsiveness
+        setInterval(fetchLatestData, 5000); // Reduced to 10 seconds for better responsiveness
     });
 
     // Fetch initial data including system status and threshold

@@ -29,8 +29,8 @@
         }
     }
 
-    $: currentStatus = moistureLevel > 800 ? 'Dry' : moistureLevel > 600 ? 'Optimal' : 'Wet';
-    $: statusColor = moistureLevel > 800 ? 'red' : moistureLevel > 600 ? 'green' : 'yellow';
+    $: currentStatus = moistureLevel > 350 ? 'Dry' : moistureLevel > 200 ? 'Optimal' : 'Wet';
+    $: statusColor = moistureLevel > 350 ? 'red' : moistureLevel > 200 ? 'green' : 'yellow';
 
     $: options = {
         chart: {
@@ -120,15 +120,15 @@
         <div class="grid grid-cols-3 border-b border-primary-400 py-4">
             <dl>
                 <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Wet</dt>
-                <dd class="text-xl font-bold leading-none text-blue-500 dark:text-blue-400">{"<600"}</dd>
+                <dd class="text-xl font-bold leading-none text-blue-500 dark:text-blue-400">{"<150"}</dd>
             </dl>
             <dl>
                 <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Optimal</dt>
-                <dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">600-800</dd>
+                <dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">250</dd>
             </dl>
             <dl>
                 <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Dry</dt>
-                <dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">{">800"}</dd>
+                <dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">{">350"}</dd>
             </dl>
         </div>
     </div>
