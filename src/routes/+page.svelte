@@ -9,14 +9,14 @@
     let moistureLevel = 0;
     let pumpStatus = 'OFF';
     let systemStatus = 0; // 0 = Off, 1 = On
-    let threshold = 250; // Default threshold value
+    let threshold = 250; // Default threshold value - calibrated for new sensor
     let updating = false;
     let error = '';
 
     // Call function on mount
     onMount(() => {
         fetchInitialData();
-        setInterval(fetchLatestData, 5000); // Reduced to 10 seconds for better responsiveness
+        setInterval(fetchLatestData, 10000); // Increased to 10 seconds
     });
 
     // Fetch initial data including system status and threshold
@@ -31,8 +31,9 @@
                 moistureLevel = parseInt(feed.field1) || 0;
                 pumpStatus = feed.field2 === '1' ? 'ON' : 'OFF';
                 systemStatus = parseInt(feed.field3) || 0;
-                threshold = parseInt(feed.field4) || 800;
+                threshold = parseInt(feed.field4) || 250; // Updated default
                 error = '';
+                console.log('Initial data loaded:', { moistureLevel, pumpStatus, systemStatus, threshold });
             }
         } catch (error) {
             console.error('Error fetching initial data:', error);
@@ -60,22 +61,30 @@
 
     async function updateSystemSettings() {
         updating = true;
+        error = '';
+        
+        // Note: We only update fields 3 and 4 (systemStatus and threshold)
+        // Fields 1 and 2 are updated by the Arduino
         const apiKey = 'CV5WWIPTAVEW6RMD';
-        const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field1=${moistureLevel}&field2=${pumpStatus === 'ON' ? 1 : 0}&field3=${systemStatus}&field4=${threshold}`;
+        const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field3=${systemStatus}&field4=${threshold}`;
 
         try {
             const response = await fetch(url);
             const data = await response.text();
             
+            console.log('ThingSpeak update response:', data);
+            
             if (data !== '0') {
-                console.log('System settings updated successfully.');
+                console.log('System settings updated successfully. Entry ID:', data);
                 error = '';
+                // Refresh data to confirm update
+                setTimeout(fetchInitialData, 2000);
             } else {
-                throw new Error('ThingSpeak returned 0');
+                throw new Error('ThingSpeak update failed - rate limiting or invalid API key');
             }
         } catch (error) {
             console.error('Error updating system settings:', error);
-            error = 'Failed to update system settings. Please try again.';
+            error = 'Failed to update system settings. ThingSpeak may be rate limiting (1 update every 15s). Please wait and try again.';
         } finally {
             updating = false;
         }
@@ -83,7 +92,6 @@
 
     function toggleSystemStatus() {
         systemStatus = systemStatus === 1 ? 0 : 1;
-        pumpStatus = 'OFF'; // Turn pump off when changing system status
         updateSystemSettings();
     }
 
@@ -127,9 +135,12 @@
         <Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-red-100 md:mt-0">
             <Label class="col-span-2">
                 Moisture Threshold
-                <Range id="range-minmax" min="300" max="1200" bind:value={threshold} />
-                <p>Value: {threshold}</p>
-                <p class="text-xs text-gray-600">Higher values = drier soil will trigger watering</p>
+                <Range id="range-minmax" min="70" max="430" bind:value={threshold} />
+                <p>Current Value: {threshold}</p>
+                <p class="text-xs text-gray-600">
+                    Higher values = drier soil will trigger watering<br>
+                    Sensor Range: 70 (Wet) to 430 (Dry)
+                </p>
             </Label>
             {#if updating}
                 <Button color="red" disabled>Updating...</Button>

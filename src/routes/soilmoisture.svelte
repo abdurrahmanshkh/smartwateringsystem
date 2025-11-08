@@ -29,8 +29,9 @@
         }
     }
 
-    $: currentStatus = moistureLevel > 350 ? 'Dry' : moistureLevel > 200 ? 'Optimal' : 'Wet';
-    $: statusColor = moistureLevel > 350 ? 'red' : moistureLevel > 200 ? 'green' : 'yellow';
+    // Updated calibration for new sensor: 70 (Wet) to 430 (Dry)
+    $: currentStatus = moistureLevel > 300 ? 'Dry' : moistureLevel > 150 ? 'Optimal' : 'Wet';
+    $: statusColor = moistureLevel > 300 ? 'red' : moistureLevel > 150 ? 'green' : 'blue';
 
     $: options = {
         chart: {
@@ -73,6 +74,8 @@
             }
         },
         yaxis: {
+            min: 50,
+            max: 450,
             labels: {
                 style: {
                     colors: '#6B7280'
@@ -107,7 +110,7 @@
                         Optimal
                     </span>
                 {:else if currentStatus === 'Wet'}
-                    <span class="inline-flex items-center rounded-md bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                    <span class="inline-flex items-center rounded-md bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                         Wet
                     </span>
                 {:else}
@@ -124,11 +127,11 @@
             </dl>
             <dl>
                 <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Optimal</dt>
-                <dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">250</dd>
+                <dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">150-300</dd>
             </dl>
             <dl>
                 <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Dry</dt>
-                <dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">{">350"}</dd>
+                <dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">{">300"}</dd>
             </dl>
         </div>
     </div>
