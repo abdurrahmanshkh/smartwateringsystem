@@ -326,50 +326,61 @@
 	<!-- Control Cards -->
 	<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-5">
 		<!-- System Control -->
-		<Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-			<div class="space-y-4">
-				<div class="flex items-center justify-between">
-					<div>
-						<h3 class="text-lg md:text-xl font-bold text-blue-900">System Control</h3>
-						<p class="text-sm text-blue-700 mt-1">
-							Current: <Badge color={channelData.systemStatus === 1 ? 'green' : 'red'} class="ml-1">
-								{channelData.systemStatus === 1 ? 'ACTIVE' : 'INACTIVE'}
-							</Badge>
-						</p>
-					</div>
-					<div class="text-3xl">{channelData.systemStatus === 1 ? '✅' : '⏸️'}</div>
-				</div>
-				
-				<div class="p-4 bg-white/80 rounded-lg border border-blue-200">
-					<p class="text-sm text-gray-700 mb-3">
-						{channelData.systemStatus === 1 
-							? 'System is actively monitoring and will water plants automatically when needed.' 
-							: 'System is paused. No automatic watering will occur.'}
-					</p>
-					<Button 
-						on:click={toggleSystemStatus} 
-						color={channelData.systemStatus === 1 ? 'red' : 'green'}
-						disabled={updating}
-						class="font-semibold"
-					>
-						{#if updating}
-							<Spinner size="4" class="mr-2" />
-						{:else if channelData.systemStatus === 1}
-							<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							Pause System
-						{:else}
-							<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							Start System
-						{/if}
-					</Button>
-				</div>
-			</div>
-		</Card>
+        <Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+            <div class="space-y-4">
+                <!-- Header Section -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg md:text-xl font-bold text-blue-900">System Control</h3>
+                        <p class="text-sm text-blue-700 mt-1">
+                            Current:
+                            <Badge color={channelData.systemStatus === 1 ? 'green' : 'red'} class="ml-1">
+                                {channelData.systemStatus === 1 ? 'ACTIVE' : 'INACTIVE'}
+                            </Badge>
+                        </p>
+                    </div>
+                    <div class="text-3xl">
+                        {channelData.systemStatus === 1 ? '✅' : '⏸️'}
+                    </div>
+                </div>
+
+                <!-- Status and Control Button Section -->
+                <div class="p-4 bg-white/80 rounded-lg border border-blue-200">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <p class="text-sm text-gray-700 mb-3 md:mb-0 md:mr-4">
+                            {channelData.systemStatus === 1
+                                ? 'System is actively monitoring and will water plants automatically when needed.'
+                                : 'System is paused. No automatic watering will occur.'}
+                        </p>
+
+                        <Button
+                            on:click={toggleSystemStatus}
+                            color={channelData.systemStatus === 1 ? 'red' : 'green'}
+                            disabled={updating}
+                            class="font-semibold w-full md:w-auto"
+                        >
+                            {#if updating}
+                                <Spinner size="4" class="mr-2" />
+                            {:else if channelData.systemStatus === 1}
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Pause System
+                            {:else}
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Start System
+                            {/if}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </Card>
 
 		<!-- Threshold Control -->
 		<Card class="min-w-full shadow-md border border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
