@@ -120,11 +120,6 @@
     $: currentSystemStatus = channelData.systemStatus;
     $: currentThreshold = channelData.threshold;
     $: currentFeeds = channelData.feeds;
-
-    // Update local threshold when channel data changes
-    $: if (channelData.threshold !== localThreshold) {
-        localThreshold = channelData.threshold;
-    }
 </script>
 
 <main class="max-w-full space-y-2 px-2">
