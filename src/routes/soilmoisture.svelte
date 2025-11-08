@@ -22,16 +22,16 @@
 
 	$: options = {
 		chart: {
-			height: '400px',
+			height: '320px',
 			maxWidth: '100%',
 			type: 'area',
 			fontFamily: 'Inter, sans-serif',
 			dropShadow: {
 				enabled: true,
-				top: 3,
+				top: 2,
 				left: 0,
-				blur: 4,
-				opacity: 0.1
+				blur: 3,
+				opacity: 0.08
 			},
 			toolbar: {
 				show: true,
@@ -48,7 +48,7 @@
 			animations: {
 				enabled: true,
 				easing: 'easeinout',
-				speed: 800
+				speed: 600
 			}
 		},
 		tooltip: {
@@ -65,8 +65,8 @@
 		fill: {
 			type: 'gradient',
 			gradient: {
-				opacityFrom: 0.7,
-				opacityTo: 0.2,
+				opacityFrom: 0.6,
+				opacityTo: 0.1,
 				stops: [0, 90, 100]
 			}
 		},
@@ -75,14 +75,14 @@
 		},
 		stroke: {
 			curve: 'smooth',
-			width: 3
+			width: 2.5
 		},
 		xaxis: {
 			categories: timestamps,
 			labels: {
 				style: {
 					colors: '#6B7280',
-					fontSize: '12px'
+					fontSize: '11px'
 				},
 				rotate: -45,
 				rotateAlways: false
@@ -90,7 +90,7 @@
 			title: {
 				text: 'Time',
 				style: {
-					fontSize: '14px',
+					fontSize: '12px',
 					fontWeight: 600
 				}
 			}
@@ -101,23 +101,29 @@
 			labels: {
 				style: {
 					colors: '#6B7280',
-					fontSize: '12px'
+					fontSize: '11px'
 				},
 				formatter: function(value) {
 					return Math.round(value);
 				}
 			},
 			title: {
-				text: 'Moisture Level (Raw)',
+				text: 'Moisture Level',
 				style: {
-					fontSize: '14px',
+					fontSize: '12px',
 					fontWeight: 600
 				}
 			}
 		},
 		grid: {
 			borderColor: '#E5E7EB',
-			strokeDashArray: 4
+			strokeDashArray: 3,
+			padding: {
+				top: 0,
+				right: 10,
+				bottom: 0,
+				left: 10
+			}
 		},
 		annotations: {
 			yaxis: [
@@ -125,10 +131,11 @@
 					y: 350,
 					borderColor: '#EF4444',
 					label: {
-						text: 'Critical Dry',
+						text: 'Critical',
 						style: {
 							color: '#fff',
-							background: '#EF4444'
+							background: '#EF4444',
+							fontSize: '10px'
 						}
 					}
 				},
@@ -136,10 +143,11 @@
 					y: 150,
 					borderColor: '#10B981',
 					label: {
-						text: 'Optimal Zone',
+						text: 'Optimal',
 						style: {
 							color: '#fff',
-							background: '#10B981'
+							background: '#10B981',
+							fontSize: '10px'
 						}
 					}
 				}
@@ -155,83 +163,84 @@
 	};
 </script>
 
-<Card class="shadow-xl border-2 border-primary-300 bg-gradient-to-br from-white to-primary-50">
-	<div class="border-b-2 border-primary-400 pb-4 mb-4">
-		<div class="flex justify-between items-center">
-			<h2 class="text-2xl font-bold text-primary-900">💧 Soil Moisture Levels</h2>
-			<Badge color={currentStatus.color} large>{currentStatus.text}</Badge>
-		</div>
-	</div>
-
+<Card class="shadow-md border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 h-full">
 	<div class="space-y-4">
+		<!-- Header -->
+		<div class="flex justify-between items-center pb-3 border-b border-blue-200">
+			<h2 class="text-lg md:text-xl font-bold text-blue-900 flex items-center gap-2">
+				<span>💧</span> Soil Moisture Levels
+			</h2>
+			<Badge color={currentStatus.color}>{currentStatus.text}</Badge>
+		</div>
+
 		<!-- Current Reading -->
-		<div class="flex justify-between items-center p-4 bg-white rounded-lg shadow-md border-b-2 border-primary-400">
+		<div class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm border border-blue-100">
 			<div>
-				<dt class="text-sm font-medium text-gray-500">Current Reading</dt>
+				<dt class="text-xs font-medium text-gray-600">Current Reading</dt>
 				<dd class="mt-1 flex items-baseline gap-2">
-					<span class="text-4xl font-bold text-gray-900">{moistureLevel}</span>
-					<span class="text-lg text-gray-600">({moisturePercentage}%)</span>
+					<span class="text-3xl font-bold text-gray-900">{moistureLevel}</span>
+					<span class="text-base text-gray-600">({moisturePercentage}%)</span>
 				</dd>
 			</div>
 			<div class="text-right">
-				<span class="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium bg-{currentStatus.color}-100 text-{currentStatus.color}-800">
+				<span class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold bg-{currentStatus.color}-100 text-{currentStatus.color}-800 border border-{currentStatus.color}-200">
 					{#if currentStatus.color === 'green'}
-						✓ {currentStatus.text}
+						✓ Optimal
 					{:else if currentStatus.color === 'red'}
-						⚠ {currentStatus.text}
+						⚠ Critical
 					{:else}
-						● {currentStatus.text}
+						● {currentStatus.text.split(' - ')}
 					{/if}
 				</span>
 			</div>
 		</div>
 
 		<!-- Moisture Ranges -->
-		<div class="grid grid-cols-3 gap-4">
-			<div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">💧 Wet Zone</dt>
-				<dd class="text-xl font-bold text-blue-600">&lt;150</dd>
-				<p class="text-xs text-gray-600 mt-1">Too much moisture</p>
+		<div class="grid grid-cols-3 gap-2">
+			<div class="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">💧 Wet</dt>
+				<dd class="text-base font-bold text-blue-600">&lt;150</dd>
+				<p class="text-xs text-gray-600 mt-0.5">Too much</p>
 			</div>
-			<div class="p-4 bg-green-50 rounded-lg border-2 border-green-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">✓ Optimal Zone</dt>
-				<dd class="text-xl font-bold text-green-600">150-300</dd>
-				<p class="text-xs text-gray-600 mt-1">Perfect conditions</p>
+			<div class="p-2.5 bg-green-50 rounded-lg border border-green-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">✓ Optimal</dt>
+				<dd class="text-base font-bold text-green-600">150-300</dd>
+				<p class="text-xs text-gray-600 mt-0.5">Perfect</p>
 			</div>
-			<div class="p-4 bg-red-50 rounded-lg border-2 border-red-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">🔥 Dry Zone</dt>
-				<dd class="text-xl font-bold text-red-600">&gt;300</dd>
-				<p class="text-xs text-gray-600 mt-1">Needs watering</p>
+			<div class="p-2.5 bg-red-50 rounded-lg border border-red-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">🔥 Dry</dt>
+				<dd class="text-base font-bold text-red-600">&gt;300</dd>
+				<p class="text-xs text-gray-600 mt-0.5">Needs water</p>
 			</div>
 		</div>
 
 		<!-- Chart -->
-		<div class="pt-4">
-			<h3 class="text-lg font-semibold text-gray-800 mb-3">Historical Trend</h3>
-			<div class="bg-white p-4 rounded-lg shadow-inner">
+		<div>
+			<h3 class="text-sm font-semibold text-gray-800 mb-2">Historical Trend</h3>
+			<div class="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
 				<Chart {options} bind:chart />
 			</div>
 		</div>
 
-		<!-- Stats Summary -->
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
-			<div class="text-center p-3 bg-white rounded-lg shadow-sm">
+		<!-- Stats -->
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+			<div class="text-center p-2 bg-white rounded-lg shadow-sm border border-gray-200">
 				<p class="text-xs text-gray-600">Min</p>
-				<p class="text-lg font-bold text-gray-900">{Math.min(...moistureValues)}</p>
+				<p class="text-base font-bold text-gray-900">{Math.min(...moistureValues)}</p>
 			</div>
-			<div class="text-center p-3 bg-white rounded-lg shadow-sm">
+			<div class="text-center p-2 bg-white rounded-lg shadow-sm border border-gray-200">
 				<p class="text-xs text-gray-600">Max</p>
-				<p class="text-lg font-bold text-gray-900">{Math.max(...moistureValues)}</p>
+				<p class="text-base font-bold text-gray-900">{Math.max(...moistureValues)}</p>
 			</div>
-			<div class="text-center p-3 bg-white rounded-lg shadow-sm">
+			<div class="text-center p-2 bg-white rounded-lg shadow-sm border border-gray-200">
 				<p class="text-xs text-gray-600">Avg</p>
-				<p class="text-lg font-bold text-gray-900">
+				<p class="text-base font-bold text-gray-900">
 					{Math.round(moistureValues.reduce((a, b) => a + b, 0) / moistureValues.length)}
 				</p>
 			</div>
-			<div class="text-center p-3 bg-white rounded-lg shadow-sm">
-				<p class="text-xs text-gray-600">Data Points</p>
-				<p class="text-lg font-bold text-gray-900">{feeds.length}</p>
+			<div class="text-center p-2 bg-white rounded-lg shadow-sm border border-gray-200">
+				<p class="text-xs text-gray-600">Points</p>
+				<p class="text-base font-bold text-gray-900">{feeds.length}</p>
 			</div>
 		</div>
 	</div>

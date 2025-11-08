@@ -24,7 +24,7 @@
 			},
 			type: 'bar',
 			width: '100%',
-			height: 400,
+			height: 320,
 			toolbar: {
 				show: true,
 				tools: {
@@ -40,7 +40,7 @@
 			animations: {
 				enabled: true,
 				easing: 'easeinout',
-				speed: 800
+				speed: 600
 			}
 		},
 		fill: {
@@ -50,9 +50,9 @@
 		plotOptions: {
 			bar: {
 				horizontal: false,
-				columnWidth: '70%',
+				columnWidth: '65%',
 				borderRadiusApplication: 'end',
-				borderRadius: 8,
+				borderRadius: 6,
 				dataLabels: {
 					position: 'top'
 				},
@@ -70,19 +70,18 @@
 			}
 		},
 		legend: {
-			show: true,
-			position: 'top',
-			horizontalAlign: 'left'
+			show: false
 		},
 		dataLabels: {
 			enabled: true,
 			formatter: function (val) {
 				return val === 1 ? 'ON' : 'OFF';
 			},
-			offsetY: -20,
+			offsetY: -18,
 			style: {
-				fontSize: '12px',
-				colors: ['#374151']
+				fontSize: '10px',
+				colors: ['#374151'],
+				fontWeight: 600
 			}
 		},
 		tooltip: {
@@ -99,7 +98,8 @@
 				show: true,
 				style: {
 					fontFamily: 'Inter, sans-serif',
-					cssClass: 'text-xs font-normal fill-gray-500'
+					cssClass: 'text-xs font-normal fill-gray-500',
+					fontSize: '11px'
 				},
 				rotate: -45,
 				rotateAlways: false
@@ -109,110 +109,114 @@
 				show: false
 			},
 			axisBorder: {
-				show: true
+				show: true,
+				color: '#E5E7EB'
 			},
 			title: {
 				text: 'Time',
 				style: {
-					fontSize: '14px',
+					fontSize: '12px',
 					fontWeight: 600
 				}
 			}
 		},
 		yaxis: {
 			min: 0,
-			max: 1.2,
+			max: 1.15,
 			tickAmount: 2,
 			labels: {
 				show: true,
 				style: {
 					fontFamily: 'Inter, sans-serif',
-					cssClass: 'text-xs font-normal fill-gray-500'
+					cssClass: 'text-xs font-normal fill-gray-500',
+					fontSize: '11px'
 				},
 				formatter: function(value) {
 					return value === 1 ? 'ON' : value === 0 ? 'OFF' : '';
 				}
 			},
 			title: {
-				text: 'Pump Status',
+				text: 'Status',
 				style: {
-					fontSize: '14px',
+					fontSize: '12px',
 					fontWeight: 600
 				}
 			}
 		},
 		grid: {
 			show: true,
-			strokeDashArray: 4,
+			strokeDashArray: 3,
 			padding: {
 				left: 10,
 				right: 10,
-				top: 0
+				top: 0,
+				bottom: 0
 			},
 			borderColor: '#E5E7EB'
 		}
 	};
 </script>
 
-<Card class="shadow-xl border-2 border-amber-200 bg-gradient-to-br from-white to-amber-50">
-	<div class="border-b-2 border-amber-400 pb-4 mb-4">
-		<div class="flex justify-between items-center">
-			<h2 class="text-2xl font-bold text-amber-900">⚙️ Water Pump Status</h2>
-			<Badge color={pumpStatus === 'ON' ? 'green' : 'gray'} large>
+<Card class="shadow-md border border-amber-200 bg-gradient-to-br from-white to-amber-50/30 h-full">
+	<div class="space-y-4">
+		<!-- Header -->
+		<div class="flex justify-between items-center pb-3 border-b border-amber-200">
+			<h2 class="text-lg md:text-xl font-bold text-amber-900 flex items-center gap-2">
+				<span>⚙️</span> Water Pump Status
+			</h2>
+			<Badge color={pumpStatus === 'ON' ? 'green' : 'gray'}>
 				{pumpStatus === 'ON' ? '● ACTIVE' : '○ INACTIVE'}
 			</Badge>
 		</div>
-	</div>
 
-	<div class="space-y-4">
 		<!-- Current Status -->
-		<div class="flex justify-between items-center p-4 bg-white rounded-lg shadow-md border-b-2 border-amber-400">
+		<div class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm border border-amber-100">
 			<div>
-				<dt class="text-sm font-medium text-gray-500">Current Status</dt>
+				<dt class="text-xs font-medium text-gray-600">Current Status</dt>
 				<dd class="mt-1">
-					<span class="text-4xl font-bold text-gray-900">{pumpStatus}</span>
+					<span class="text-3xl font-bold text-gray-900">{pumpStatus}</span>
 				</dd>
 			</div>
-			<div class="text-5xl">
+			<div class="text-4xl">
 				{pumpStatus === 'ON' ? '🔄' : '⏸️'}
 			</div>
 		</div>
 
 		<!-- Statistics -->
-		<div class="grid grid-cols-3 gap-4">
-			<div class="p-4 bg-green-50 rounded-lg border-2 border-green-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">✓ Active</dt>
-				<dd class="text-2xl font-bold text-green-600">{onCount}</dd>
-				<p class="text-xs text-gray-600 mt-1">times</p>
+		<div class="grid grid-cols-3 gap-2">
+			<div class="p-2.5 bg-green-50 rounded-lg border border-green-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">✓ Active</dt>
+				<dd class="text-xl font-bold text-green-600">{onCount}</dd>
+				<p class="text-xs text-gray-600 mt-0.5">times</p>
 			</div>
-			<div class="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">○ Inactive</dt>
-				<dd class="text-2xl font-bold text-gray-600">{offCount}</dd>
-				<p class="text-xs text-gray-600 mt-1">times</p>
+			<div class="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">○ Inactive</dt>
+				<dd class="text-xl font-bold text-gray-600">{offCount}</dd>
+				<p class="text-xs text-gray-600 mt-0.5">times</p>
 			</div>
-			<div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-				<dt class="text-sm font-medium text-gray-700 mb-1">📊 Uptime</dt>
-				<dd class="text-2xl font-bold text-blue-600">{averageOnTime}%</dd>
-				<p class="text-xs text-gray-600 mt-1">of time</p>
+			<div class="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
+				<dt class="text-xs font-medium text-gray-700 mb-0.5">📊 Uptime</dt>
+				<dd class="text-xl font-bold text-blue-600">{averageOnTime}%</dd>
+				<p class="text-xs text-gray-600 mt-0.5">of time</p>
 			</div>
 		</div>
 
 		<!-- Chart -->
-		<div class="pt-4">
-			<h3 class="text-lg font-semibold text-gray-800 mb-3">Activity History</h3>
-			<div class="bg-white p-4 rounded-lg shadow-inner">
+		<div>
+			<h3 class="text-sm font-semibold text-gray-800 mb-2">Activity History</h3>
+			<div class="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
 				<Chart {options} />
 			</div>
 		</div>
 
-		<!-- Performance Indicator -->
-		<div class="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+		<!-- Performance -->
+		<div class="p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
 			<div class="flex justify-between items-center">
 				<div>
-					<p class="text-sm font-medium text-gray-700">System Performance</p>
-					<p class="text-xs text-gray-600 mt-1">Based on pump activity patterns</p>
+					<p class="text-sm font-semibold text-gray-800">System Performance</p>
+					<p class="text-xs text-gray-600 mt-0.5">Based on pump activity</p>
 				</div>
-				<Badge color="green" large>
+				<Badge color="green">
 					{averageOnTime < 30 ? 'Efficient' : averageOnTime < 60 ? 'Normal' : 'High Usage'}
 				</Badge>
 			</div>
