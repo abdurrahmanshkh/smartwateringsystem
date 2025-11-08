@@ -44,14 +44,11 @@
 	</main>
 
 	<Footer class="bg-gradient-to-r from-green-600 to-teal-600 text-white mt-auto">
-		<div class="w-full text-center py-4">
-			<FooterCopyright 
-				href="/" 
-				by="Smart Plant Watering System" 
-				year={2024}
-				class="text-white/90 text-sm"
-			/>
-			<span class="block text-xs text-white/80 mt-1">
+		<div class="w-full text-center py-4 text-white">
+			<span class="block text-xs text-white mt-1">
+				© 2025 Smart Plant Watering System All Rights Reserved.
+			</span>
+			<span class="block text-xs text-white mt-1">
 				Powered by IoT & AI • Sustainable Gardening
 			</span>
 		</div>
