@@ -383,60 +383,83 @@
         </Card>
 
 		<!-- Threshold Control -->
-		<Card class="min-w-full shadow-md border border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
-			<div class="space-y-4">
-				<div class="flex items-center justify-between">
-					<div>
-						<h3 class="text-lg md:text-xl font-bold text-red-900">Moisture Threshold</h3>
-						<p class="text-sm text-red-700 mt-1">
-							Current: <Badge color="red" class="ml-1">{channelData.threshold}</Badge>
-						</p>
-					</div>
-					<div class="text-3xl">🎯</div>
-				</div>
-				
-				<div class="p-4 bg-white/80 rounded-lg border border-red-200 space-y-3">
-					<Label class="space-y-2">
-						<span class="text-gray-800 font-semibold text-sm">Set Threshold Value</span>
-						<Range 
-							id="threshold-range" 
-							min="70" 
-							max="430" 
-							bind:value={localThreshold}
-						/>
-						<div class="flex justify-between items-center mt-2">
-							<div>
-								<p class="text-xl md:text-2xl font-bold text-gray-900">{localThreshold}</p>
-								<p class="text-xs text-gray-600">
-									{localThreshold > 300 ? 'Dry trigger' : localThreshold > 200 ? 'Balanced' : 'Wet trigger'}
-								</p>
-							</div>
-							<div class="text-xs text-gray-600 text-right">
-								<p>Range: 70-430</p>
-								<p class="text-blue-600 font-medium">Higher = Drier</p>
-							</div>
-						</div>
-					</Label>
-					
-					<Button 
-						on:click={updateThreshold} 
-						color="red"
-						disabled={updating || localThreshold === channelData.threshold}
-						class="w-full font-semibold"
-					>
-						{#if updating}
-							<Spinner size="4" class="mr-2" />
-							Updating...
-						{:else}
-							<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-							</svg>
-							Update Threshold
-						{/if}
-					</Button>
-				</div>
-			</div>
-		</Card>
+        <Card class="min-w-full shadow-md border border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
+            <div class="space-y-4">
+                <!-- Header Section -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg md:text-xl font-bold text-red-900">Moisture Threshold</h3>
+                        <p class="text-sm text-red-700 mt-1">
+                            Current:
+                            <Badge color="red" class="ml-1">{channelData.threshold}</Badge>
+                        </p>
+                    </div>
+                    <div class="text-3xl">🎯</div>
+                </div>
+
+                <!-- Threshold Control Section -->
+                <div class="p-4 bg-white/80 rounded-lg border border-red-200 space-y-4">
+                    <Label class="space-y-2 w-full">
+                        <span class="text-gray-800 font-semibold text-sm">Set Threshold Value</span>
+                        <Range
+                            id="threshold-range"
+                            min="70"
+                            max="430"
+                            bind:value={localThreshold}
+                        />
+                    </Label>
+
+                    <!-- Threshold Display + Update Button -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <!-- Value Info -->
+                        <div class="flex items-center justify-between w-full md:w-auto md:space-x-6">
+                            <div>
+                                <p class="text-xl md:text-2xl font-bold text-gray-900">{localThreshold}</p>
+                                <p class="text-xs text-gray-600">
+                                    {localThreshold > 300
+                                        ? 'Dry trigger'
+                                        : localThreshold > 200
+                                        ? 'Balanced'
+                                        : 'Wet trigger'}
+                                </p>
+                            </div>
+                            <div class="text-xs text-gray-600 text-right md:text-left">
+                                <p>Range: 70–430</p>
+                                <p class="text-blue-600 font-medium">Higher = Drier</p>
+                            </div>
+                        </div>
+
+                        <!-- Update Button -->
+                        <Button
+                            on:click={updateThreshold}
+                            color="red"
+                            disabled={updating || localThreshold === channelData.threshold}
+                            class="font-semibold mt-3 md:mt-0 w-full md:w-auto"
+                        >
+                            {#if updating}
+                                <Spinner size="4" class="mr-2" />
+                                Updating...
+                            {:else}
+                                <svg
+                                    class="w-5 h-5 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                    />
+                                </svg>
+                                Update Threshold
+                            {/if}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </Card>
 	</div>
 </div>
 
