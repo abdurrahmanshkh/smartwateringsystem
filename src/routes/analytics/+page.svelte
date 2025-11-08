@@ -70,7 +70,7 @@
 	</div>
 
 	{#if loading}
-		<Card class="shadow-md border border-gray-200">
+		<Card class="min-w-full shadow-md border border-gray-200">
 			<div class="text-center py-12">
 				<Spinner size="8" class="mx-auto mb-3" />
 				<p class="text-gray-600">Loading analytics data...</p>
@@ -79,7 +79,7 @@
 	{:else}
 		<!-- Key Metrics -->
 		<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-			<Card class="shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+			<Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
 				<div class="text-center">
 					<div class="text-3xl mb-2">📈</div>
 					<p class="text-xs text-gray-600 mb-1">Total Readings</p>
@@ -87,7 +87,7 @@
 				</div>
 			</Card>
 
-			<Card class="shadow-md border border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+			<Card class="min-w-full shadow-md border border-green-200 bg-gradient-to-br from-green-50 to-green-100">
 				<div class="text-center">
 					<div class="text-3xl mb-2">💧</div>
 					<p class="text-xs text-gray-600 mb-1">Avg Moisture</p>
@@ -95,7 +95,7 @@
 				</div>
 			</Card>
 
-			<Card class="shadow-md border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
+			<Card class="min-w-full shadow-md border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
 				<div class="text-center">
 					<div class="text-3xl mb-2">🔄</div>
 					<p class="text-xs text-gray-600 mb-1">Pump Activations</p>
@@ -103,7 +103,7 @@
 				</div>
 			</Card>
 
-			<Card class="shadow-md border border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100">
+			<Card class="min-w-full shadow-md border border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100">
 				<div class="text-center">
 					<div class="text-3xl mb-2">⚡</div>
 					<p class="text-xs text-gray-600 mb-1">Watering Frequency</p>
@@ -113,7 +113,7 @@
 		</div>
 
 		<!-- Detailed Stats -->
-		<Card class="shadow-md border border-gray-200">
+		<Card class="min-w-full shadow-md border border-gray-200">
 			<h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">Detailed Statistics</h2>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 				<div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -142,7 +142,7 @@
 		</Card>
 
 		<!-- Recommendations -->
-		<Card class="shadow-md border border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50">
+		<Card class="min-w-full shadow-md border border-yellow-300 bg-gradient-to-br from-yellow-50 to-orange-50">
 			<h2 class="text-xl md:text-2xl font-bold text-yellow-900 mb-4 flex items-center gap-2">
 				<span>💡</span> Recommendations
 			</h2>

@@ -163,7 +163,7 @@
 	};
 </script>
 
-<Card class="shadow-md border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 h-full">
+<Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-white to-blue-50/30 h-full">
 	<div class="space-y-4">
 		<!-- Header -->
 		<div class="flex justify-between items-center pb-3 border-b border-blue-200">

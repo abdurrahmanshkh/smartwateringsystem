@@ -227,7 +227,7 @@
 	{/if}
 
 	<!-- System Health Card -->
-	<Card class="shadow-md border border-gray-200">
+	<Card class="min-w-full shadow-md border border-gray-200">
 		<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
 			<div class="flex items-center gap-4">
 				<div class="relative flex-shrink-0">
@@ -282,7 +282,7 @@
 	</Card>
 
 	<!-- Quick Actions -->
-	<Card class="shadow-md border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+	<Card class="min-w-full shadow-md border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
 		<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 			<div>
 				<h3 class="text-lg md:text-xl font-bold text-purple-900 mb-1 flex items-center gap-2">
@@ -323,7 +323,7 @@
 	<!-- Control Cards -->
 	<div class="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-5">
 		<!-- System Control -->
-		<Card class="shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+		<Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<div>
@@ -369,7 +369,7 @@
 		</Card>
 
 		<!-- Threshold Control -->
-		<Card class="shadow-md border border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
+		<Card class="min-w-full shadow-md border border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<div>

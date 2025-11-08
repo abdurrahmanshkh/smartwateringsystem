@@ -65,7 +65,7 @@
 	</div>
 
 	<!-- Search and Filter -->
-	<Card class="shadow-md border border-gray-200">
+	<Card class="min-w-full shadow-md border border-gray-200">
 		<div class="space-y-3">
 			<div>
 				<Input 

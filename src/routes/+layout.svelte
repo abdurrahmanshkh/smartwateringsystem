@@ -34,7 +34,6 @@
 			<NavLi href="/" active={$page.url.pathname === '/'} class="font-medium text-sm md:text-base">Dashboard</NavLi>
 			<NavLi href="/plants" active={$page.url.pathname === '/plants'} class="font-medium text-sm md:text-base">Plant Database</NavLi>
 			<NavLi href="/analytics" active={$page.url.pathname === '/analytics'} class="font-medium text-sm md:text-base">Analytics</NavLi>
-			<NavLi href="/settings" active={$page.url.pathname === '/settings'} class="font-medium text-sm md:text-base">Settings</NavLi>
 		</NavUl>
 	</Navbar>
 
