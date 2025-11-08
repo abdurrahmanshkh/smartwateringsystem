@@ -1,141 +1,221 @@
 <script lang="ts">
-    import { Card, Chart } from 'flowbite-svelte';
+	import { Card, Chart, Badge } from 'flowbite-svelte';
 
-    export let pumpStatus = 'OFF';
-    export let feeds = []; // Receive feeds from parent
+	export let pumpStatus = 'OFF';
+	export let feeds = [];
 
-    // Extract pump values from feeds for the chart and statistics
-    $: pumpValues = feeds.map(feed => feed.field2 || '0');
-    $: onCount = pumpValues.filter((value) => value === '1').length;
-    $: offCount = pumpValues.filter((value) => value === '0').length;
-    $: averageCount = onCount > 0 ? Math.round(onCount / pumpValues.length * 10) / 10 : 0;
+	$: pumpValues = feeds.map(feed => feed.field2 || '0');
+	$: onCount = pumpValues.filter((value) => value === '1').length;
+	$: offCount = pumpValues.filter((value) => value === '0').length;
+	$: averageOnTime = onCount > 0 ? ((onCount / pumpValues.length) * 100).toFixed(1) : 0;
+	$: timestamps = feeds.map(feed => new Date(feed.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
 
-    $: options = {
-        series: [
-            {
-                name: 'Pump Status',
-                color: '#31C48D',
-                data: pumpValues.map(val => parseInt(val))
-            }
-        ],
-        chart: {
-            sparkline: {
-                enabled: false
-            },
-            type: 'bar',
-            width: '100%',
-            height: 400,
-            toolbar: {
-                show: false
-            }
-        },
-        fill: {
-            opacity: 1
-        },
-        plotOptions: {
-            bar: {
-                horizontal: true,
-                columnWidth: '100%',
-                borderRadiusApplication: 'end',
-                borderRadius: 6,
-                dataLabels: {
-                    position: 'top'
-                }
-            }
-        },
-        legend: {
-            show: true,
-            position: 'bottom'
-        },
-        dataLabels: {
-            enabled: false
-        },
-        tooltip: {
-            shared: true,
-            intersect: false,
-            formatter: function (value) {
-                return value === 1 ? 'ON' : 'OFF';
-            }
-        },
-        xaxis: {
-            labels: {
-                show: true,
-                style: {
-                    fontFamily: 'Inter, sans-serif',
-                    cssClass: 'text-xs font-normal fill-gray-500 dark:fill-gray-400'
-                },
-                formatter: function (value) {
-                    return value === 1 ? 'ON' : 'OFF';
-                }
-            },
-            categories: Array.from({length: feeds.length}, (_, i) => (i + 1).toString()),
-            axisTicks: {
-                show: false
-            },
-            axisBorder: {
-                show: false
-            }
-        },
-        yaxis: {
-            labels: {
-                show: true,
-                style: {
-                    fontFamily: 'Inter, sans-serif',
-                    cssClass: 'text-xs font-normal fill-gray-500 dark:fill-gray-400'
-                }
-            }
-        },
-        grid: {
-            show: true,
-            strokeDashArray: 4,
-            padding: {
-                left: 2,
-                right: 2,
-                top: -20
-            }
-        }
-    };
+	$: options = {
+		series: [
+			{
+				name: 'Pump Status',
+				color: '#31C48D',
+				data: pumpValues.map(val => parseInt(val))
+			}
+		],
+		chart: {
+			sparkline: {
+				enabled: false
+			},
+			type: 'bar',
+			width: '100%',
+			height: 400,
+			toolbar: {
+				show: true,
+				tools: {
+					download: true,
+					selection: false,
+					zoom: false,
+					zoomin: false,
+					zoomout: false,
+					pan: false,
+					reset: false
+				}
+			},
+			animations: {
+				enabled: true,
+				easing: 'easeinout',
+				speed: 800
+			}
+		},
+		fill: {
+			opacity: 1,
+			colors: ['#31C48D']
+		},
+		plotOptions: {
+			bar: {
+				horizontal: false,
+				columnWidth: '70%',
+				borderRadiusApplication: 'end',
+				borderRadius: 8,
+				dataLabels: {
+					position: 'top'
+				},
+				colors: {
+					ranges: [{
+						from: 0,
+						to: 0,
+						color: '#9CA3AF'
+					}, {
+						from: 1,
+						to: 1,
+						color: '#31C48D'
+					}]
+				}
+			}
+		},
+		legend: {
+			show: true,
+			position: 'top',
+			horizontalAlign: 'left'
+		},
+		dataLabels: {
+			enabled: true,
+			formatter: function (val) {
+				return val === 1 ? 'ON' : 'OFF';
+			},
+			offsetY: -20,
+			style: {
+				fontSize: '12px',
+				colors: ['#374151']
+			}
+		},
+		tooltip: {
+			shared: true,
+			intersect: false,
+			y: {
+				formatter: function (value) {
+					return value === 1 ? 'Pump ON' : 'Pump OFF';
+				}
+			}
+		},
+		xaxis: {
+			labels: {
+				show: true,
+				style: {
+					fontFamily: 'Inter, sans-serif',
+					cssClass: 'text-xs font-normal fill-gray-500'
+				},
+				rotate: -45,
+				rotateAlways: false
+			},
+			categories: timestamps,
+			axisTicks: {
+				show: false
+			},
+			axisBorder: {
+				show: true
+			},
+			title: {
+				text: 'Time',
+				style: {
+					fontSize: '14px',
+					fontWeight: 600
+				}
+			}
+		},
+		yaxis: {
+			min: 0,
+			max: 1.2,
+			tickAmount: 2,
+			labels: {
+				show: true,
+				style: {
+					fontFamily: 'Inter, sans-serif',
+					cssClass: 'text-xs font-normal fill-gray-500'
+				},
+				formatter: function(value) {
+					return value === 1 ? 'ON' : value === 0 ? 'OFF' : '';
+				}
+			},
+			title: {
+				text: 'Pump Status',
+				style: {
+					fontSize: '14px',
+					fontWeight: 600
+				}
+			}
+		},
+		grid: {
+			show: true,
+			strokeDashArray: 4,
+			padding: {
+				left: 10,
+				right: 10,
+				top: 0
+			},
+			borderColor: '#E5E7EB'
+		}
+	};
 </script>
 
-<Card class="mt-2 max-w-full border-amber-100 bg-amber-50 md:m-0">
-    <span class="border-b border-amber-400 pb-4 font-semibold text-amber-900 md:text-xl">
-        Water Pump Status
-    </span>
-    <div>
-        <div class="flex justify-between border-b border-amber-400 py-4 dark:border-gray-700">
-            <dl>
-                <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Status</dt>
-                <dd class="text-3xl font-bold leading-none text-gray-900 dark:text-white">
-                    {pumpStatus}
-                </dd>
-            </dl>
-            <div>
-                <span class="inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-                    Working
-                </span>
-            </div>
-        </div>
-        <div class="grid grid-cols-3 border-b border-amber-400 py-4">
-            <dl>
-                <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">On</dt>
-                <dd class="text-xl font-bold leading-none text-green-500 dark:text-green-400">
-                    {onCount} Times
-                </dd>
-            </dl>
-            <dl>
-                <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Off</dt>
-                <dd class="text-xl font-bold leading-none text-yellow-500 dark:text-yellow-400">
-                    {offCount} Times
-                </dd>
-            </dl>
-            <dl>
-                <dt class="pb-1 text-base font-normal text-gray-500 dark:text-gray-400">Average</dt>
-                <dd class="text-xl font-bold leading-none text-red-600 dark:text-red-500">{averageCount} Times</dd>
-            </dl>
-        </div>
-    </div>
+<Card class="shadow-xl border-2 border-amber-200 bg-gradient-to-br from-white to-amber-50">
+	<div class="border-b-2 border-amber-400 pb-4 mb-4">
+		<div class="flex justify-between items-center">
+			<h2 class="text-2xl font-bold text-amber-900">⚙️ Water Pump Status</h2>
+			<Badge color={pumpStatus === 'ON' ? 'green' : 'gray'} large>
+				{pumpStatus === 'ON' ? '● ACTIVE' : '○ INACTIVE'}
+			</Badge>
+		</div>
+	</div>
 
-    <div class="max-w-full pt-4">
-        <Chart {options} />
-    </div>
+	<div class="space-y-4">
+		<!-- Current Status -->
+		<div class="flex justify-between items-center p-4 bg-white rounded-lg shadow-md border-b-2 border-amber-400">
+			<div>
+				<dt class="text-sm font-medium text-gray-500">Current Status</dt>
+				<dd class="mt-1">
+					<span class="text-4xl font-bold text-gray-900">{pumpStatus}</span>
+				</dd>
+			</div>
+			<div class="text-5xl">
+				{pumpStatus === 'ON' ? '🔄' : '⏸️'}
+			</div>
+		</div>
+
+		<!-- Statistics -->
+		<div class="grid grid-cols-3 gap-4">
+			<div class="p-4 bg-green-50 rounded-lg border-2 border-green-200">
+				<dt class="text-sm font-medium text-gray-700 mb-1">✓ Active</dt>
+				<dd class="text-2xl font-bold text-green-600">{onCount}</dd>
+				<p class="text-xs text-gray-600 mt-1">times</p>
+			</div>
+			<div class="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+				<dt class="text-sm font-medium text-gray-700 mb-1">○ Inactive</dt>
+				<dd class="text-2xl font-bold text-gray-600">{offCount}</dd>
+				<p class="text-xs text-gray-600 mt-1">times</p>
+			</div>
+			<div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+				<dt class="text-sm font-medium text-gray-700 mb-1">📊 Uptime</dt>
+				<dd class="text-2xl font-bold text-blue-600">{averageOnTime}%</dd>
+				<p class="text-xs text-gray-600 mt-1">of time</p>
+			</div>
+		</div>
+
+		<!-- Chart -->
+		<div class="pt-4">
+			<h3 class="text-lg font-semibold text-gray-800 mb-3">Activity History</h3>
+			<div class="bg-white p-4 rounded-lg shadow-inner">
+				<Chart {options} />
+			</div>
+		</div>
+
+		<!-- Performance Indicator -->
+		<div class="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+			<div class="flex justify-between items-center">
+				<div>
+					<p class="text-sm font-medium text-gray-700">System Performance</p>
+					<p class="text-xs text-gray-600 mt-1">Based on pump activity patterns</p>
+				</div>
+				<Badge color="green" large>
+					{averageOnTime < 30 ? 'Efficient' : averageOnTime < 60 ? 'Normal' : 'High Usage'}
+				</Badge>
+			</div>
+		</div>
+	</div>
 </Card>
