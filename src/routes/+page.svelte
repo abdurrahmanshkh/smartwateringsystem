@@ -6,56 +6,50 @@
     import { Range, Label } from 'flowbite-svelte';
     import { onMount } from 'svelte';
 
-    let moistureLevel = 0;
-    let pumpStatus = 'OFF';
-    let systemStatus = 0; // 0 = Off, 1 = On
-    let threshold = 250; // Default threshold value - calibrated for new sensor
+    // Centralized data store
+    let channelData = {
+        moistureLevel: 0,
+        pumpStatus: 'OFF',
+        systemStatus: 0,
+        threshold: 250,
+        feeds: []
+    };
+    
     let updating = false;
     let error = '';
 
     // Call function on mount
     onMount(() => {
-        fetchInitialData();
-        setInterval(fetchLatestData, 10000); // Increased to 10 seconds
+        fetchAllData();
+        setInterval(fetchAllData, 10000); // Single API call every 10 seconds
     });
 
-    // Fetch initial data including system status and threshold
-    async function fetchInitialData() {
-        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=1';
+    // Fetch all data including historical feeds
+    async function fetchAllData() {
+        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=10';
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
+            
             if (data.feeds && data.feeds.length > 0) {
-                const feed = data.feeds[0];
-                moistureLevel = parseInt(feed.field1) || 0;
-                pumpStatus = feed.field2 === '1' ? 'ON' : 'OFF';
-                systemStatus = parseInt(feed.field3) || 0;
-                threshold = parseInt(feed.field4) || 250; // Updated default
+                const latestFeed = data.feeds[data.feeds.length - 1]; // Get the latest entry
+                
+                // Update centralized data
+                channelData = {
+                    moistureLevel: parseInt(latestFeed.field1) || 0,
+                    pumpStatus: latestFeed.field2 === '1' ? 'ON' : 'OFF',
+                    systemStatus: parseInt(latestFeed.field3) || 0,
+                    threshold: parseInt(latestFeed.field4) || 250,
+                    feeds: data.feeds
+                };
+                
                 error = '';
-                console.log('Initial data loaded:', { moistureLevel, pumpStatus, systemStatus, threshold });
+                console.log('Data updated successfully');
             }
         } catch (error) {
-            console.error('Error fetching initial data:', error);
-            error = 'Failed to fetch initial data. Please check your connection.';
-        }
-    }
-
-    async function fetchLatestData() {
-        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=1';
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
-            if (data.feeds && data.feeds.length > 0) {
-                const feed = data.feeds[0];
-                moistureLevel = parseInt(feed.field1) || 0;
-                pumpStatus = feed.field2 === '1' ? 'ON' : 'OFF';
-                error = '';
-            }
-        } catch (error) {
-            console.error('Error fetching latest data:', error);
-            error = 'Failed to fetch latest data.';
+            console.error('Error fetching data:', error);
+            error = 'Failed to fetch data. Please check your connection.';
         }
     }
 
@@ -64,9 +58,8 @@
         error = '';
         
         // Note: We only update fields 3 and 4 (systemStatus and threshold)
-        // Fields 1 and 2 are updated by the Arduino
         const apiKey = 'CV5WWIPTAVEW6RMD';
-        const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field3=${systemStatus}&field4=${threshold}`;
+        const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field3=${channelData.systemStatus}&field4=${channelData.threshold}`;
 
         try {
             const response = await fetch(url);
@@ -78,7 +71,7 @@
                 console.log('System settings updated successfully. Entry ID:', data);
                 error = '';
                 // Refresh data to confirm update
-                setTimeout(fetchInitialData, 2000);
+                setTimeout(fetchAllData, 2000);
             } else {
                 throw new Error('ThingSpeak update failed - rate limiting or invalid API key');
             }
@@ -91,13 +84,20 @@
     }
 
     function toggleSystemStatus() {
-        systemStatus = systemStatus === 1 ? 0 : 1;
+        channelData.systemStatus = channelData.systemStatus === 1 ? 0 : 1;
         updateSystemSettings();
     }
 
     function updateThreshold() {
         updateSystemSettings();
     }
+
+    // Computed properties for reactive updates
+    $: currentMoisture = channelData.moistureLevel;
+    $: currentPumpStatus = channelData.pumpStatus;
+    $: currentSystemStatus = channelData.systemStatus;
+    $: currentThreshold = channelData.threshold;
+    $: currentFeeds = channelData.feeds;
 </script>
 
 <main class="max-w-full space-y-2 px-2">
@@ -118,25 +118,25 @@
     {/if}
     
     <div class="gap-2 md:grid md:grid-cols-2">
-        <Soilmoisture {moistureLevel} />
-        <Waterpump {pumpStatus} />
+        <Soilmoisture moistureLevel={currentMoisture} feeds={currentFeeds} />
+        <Waterpump pumpStatus={currentPumpStatus} feeds={currentFeeds} />
         <Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-blue-100 md:mt-0">
             <div class="col-span-2 border-blue-400 text-xl font-bold text-blue-900">
-                System Status: {systemStatus === 1 ? 'ON' : 'OFF'}
+                System Status: {currentSystemStatus === 1 ? 'ON' : 'OFF'}
             </div>
             {#if updating}
                 <Button color="blue" disabled>Updating...</Button>
             {:else}
                 <Button on:click={toggleSystemStatus} color="blue">
-                    {systemStatus === 1 ? 'Turn System Off' : 'Turn System On'}
+                    {currentSystemStatus === 1 ? 'Turn System Off' : 'Turn System On'}
                 </Button>
             {/if}
         </Card>
         <Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-red-100 md:mt-0">
             <Label class="col-span-2">
                 Moisture Threshold
-                <Range id="range-minmax" min="70" max="430" bind:value={threshold} />
-                <p>Current Value: {threshold}</p>
+                <Range id="range-minmax" min="70" max="430" bind:value={currentThreshold} />
+                <p>Current Value: {currentThreshold}</p>
                 <p class="text-xs text-gray-600">
                     Higher values = drier soil will trigger watering<br>
                     Sensor Range: 70 (Wet) to 430 (Dry)

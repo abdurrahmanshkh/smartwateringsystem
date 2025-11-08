@@ -1,37 +1,16 @@
 <script lang="ts">
     import { Card, Chart } from 'flowbite-svelte';
-    import { onMount } from 'svelte';
 
     export let moistureLevel = 0;
+    export let feeds = []; // Receive feeds from parent
     
     let chart: ApexCharts;
-    let moistureValues = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-    // Call function on mount and update every 10 seconds
-    onMount(() => {
-        fetchRecentData();
-        setInterval(fetchRecentData, 10000);
-    });
-
-    // Function to fetch the 10 most recent values for graphs
-    async function fetchRecentData() {
-        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=10';
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const feeds = data.feeds;
-
-            if (feeds && feeds.length > 0) {
-                moistureValues = feeds.map((feed) => parseInt(feed.field1) || 0);
-            }
-        } catch (error) {
-            console.error('Error fetching recent data:', error);
-        }
-    }
 
     // Updated calibration for new sensor: 70 (Wet) to 430 (Dry)
     $: currentStatus = moistureLevel > 300 ? 'Dry' : moistureLevel > 150 ? 'Optimal' : 'Wet';
-    $: statusColor = moistureLevel > 300 ? 'red' : moistureLevel > 150 ? 'green' : 'blue';
+    
+    // Extract moisture values from feeds for the chart
+    $: moistureValues = feeds.map(feed => parseInt(feed.field1) || 0);
 
     $: options = {
         chart: {
@@ -66,7 +45,7 @@
             curve: 'smooth'
         },
         xaxis: {
-            categories: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            categories: Array.from({length: feeds.length}, (_, i) => (i + 1).toString()),
             labels: {
                 style: {
                     colors: '#6B7280'

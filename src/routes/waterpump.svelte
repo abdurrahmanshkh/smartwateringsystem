@@ -1,33 +1,11 @@
 <script lang="ts">
     import { Card, Chart } from 'flowbite-svelte';
-    import { onMount } from 'svelte';
 
     export let pumpStatus = 'OFF';
-    
-    let pumpValues = ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0'];
+    export let feeds = []; // Receive feeds from parent
 
-    // Call function on mount and update every 10 seconds
-    onMount(() => {
-        fetchRecentData();
-        setInterval(fetchRecentData, 10000);
-    });
-
-    // Function to fetch the 10 most recent values for graphs
-    async function fetchRecentData() {
-        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=10';
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const feeds = data.feeds;
-
-            if (feeds && feeds.length > 0) {
-                pumpValues = feeds.map((feed) => feed.field2 || '0');
-            }
-        } catch (error) {
-            console.error('Error fetching recent data:', error);
-        }
-    }
-
+    // Extract pump values from feeds for the chart and statistics
+    $: pumpValues = feeds.map(feed => feed.field2 || '0');
     $: onCount = pumpValues.filter((value) => value === '1').length;
     $: offCount = pumpValues.filter((value) => value === '0').length;
     $: averageCount = onCount > 0 ? Math.round(onCount / pumpValues.length * 10) / 10 : 0;
@@ -90,7 +68,7 @@
                     return value === 1 ? 'ON' : 'OFF';
                 }
             },
-            categories: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            categories: Array.from({length: feeds.length}, (_, i) => (i + 1).toString()),
             axisTicks: {
                 show: false
             },
