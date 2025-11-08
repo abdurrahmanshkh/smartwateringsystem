@@ -54,16 +54,19 @@
 	}
 
 	function calculateUptime(feeds) {
-		if (feeds.length < 2) return '0h 0m';
-		
-		const firstFeed = new Date(feeds.created_at);
-		const lastFeed = new Date(feeds[feeds.length - 1].created_at);
-		const diffMs = lastFeed - firstFeed;
-		const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-		const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-		
-		return `${diffHrs}h ${diffMins}m`;
-	}
+        if (!Array.isArray(feeds) || feeds.length < 2) return '0h 0m';
+        const firstFeed = feeds[0]?.created_at ? new Date(feeds[0].created_at) : null;
+        const lastFeed = feeds[feeds.length - 1]?.created_at ? new Date(feeds[feeds.length - 1].created_at) : null;
+
+        if (!firstFeed || isNaN(firstFeed) || !lastFeed || isNaN(lastFeed)) return '0h 0m';
+
+        const diffMs = lastFeed - firstFeed;
+        if (isNaN(diffMs) || diffMs < 0) return '0h 0m';
+
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return `${diffHrs}h ${diffMins}m`;
+    }
 
 	onMount(() => {
 		fetchAllData();
@@ -347,7 +350,7 @@
 						on:click={toggleSystemStatus} 
 						color={channelData.systemStatus === 1 ? 'red' : 'green'}
 						disabled={updating}
-						class="w-full font-semibold"
+						class="font-semibold"
 					>
 						{#if updating}
 							<Spinner size="4" class="mr-2" />
