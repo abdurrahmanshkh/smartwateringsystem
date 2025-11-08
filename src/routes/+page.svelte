@@ -17,6 +17,7 @@
     
     let updating = false;
     let error = '';
+    let localThreshold = 250; // Local variable for slider binding
 
     // Call function on mount
     onMount(() => {
@@ -44,6 +45,9 @@
                     feeds: data.feeds
                 };
                 
+                // Sync local threshold with fetched threshold
+                localThreshold = channelData.threshold;
+                
                 error = '';
                 console.log('Data updated successfully');
             }
@@ -57,30 +61,46 @@
         updating = true;
         error = '';
         
-        // Note: We only update fields 3 and 4 (systemStatus and threshold)
         const apiKey = 'CV5WWIPTAVEW6RMD';
         const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field3=${channelData.systemStatus}&field4=${channelData.threshold}`;
 
-        try {
-            const response = await fetch(url);
-            const data = await response.text();
-            
-            console.log('ThingSpeak update response:', data);
-            
-            if (data !== '0') {
-                console.log('System settings updated successfully. Entry ID:', data);
-                error = '';
-                // Refresh data to confirm update
-                setTimeout(fetchAllData, 2000);
-            } else {
-                throw new Error('ThingSpeak update failed - rate limiting or invalid API key');
+        let attempts = 0;
+        const maxAttempts = 5;
+        let success = false;
+
+        while (attempts < maxAttempts && !success) {
+            try {
+                console.log(`Update attempt ${attempts + 1} of ${maxAttempts}`);
+                const response = await fetch(url);
+                const data = await response.text();
+                
+                console.log('ThingSpeak update response:', data);
+                
+                if (data !== '0') {
+                    console.log('System settings updated successfully. Entry ID:', data);
+                    success = true;
+                    error = '';
+                    // Refresh data to confirm update
+                    setTimeout(fetchAllData, 2000);
+                } else {
+                    throw new Error('ThingSpeak returned 0 - update failed');
+                }
+            } catch (error) {
+                console.error(`Error updating system settings (attempt ${attempts + 1}):`, error);
+                attempts++;
+                
+                if (attempts < maxAttempts) {
+                    // Wait before retrying (exponential backoff)
+                    const delay = Math.min(1000 * Math.pow(2, attempts), 10000);
+                    console.log(`Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    error = 'Failed to update system settings after multiple attempts. ThingSpeak may be rate limiting. Please try again later.';
+                }
             }
-        } catch (error) {
-            console.error('Error updating system settings:', error);
-            error = 'Failed to update system settings. ThingSpeak may be rate limiting (1 update every 15s). Please wait and try again.';
-        } finally {
-            updating = false;
         }
+        
+        updating = false;
     }
 
     function toggleSystemStatus() {
@@ -89,6 +109,8 @@
     }
 
     function updateThreshold() {
+        // Update the channelData threshold with the local slider value
+        channelData.threshold = localThreshold;
         updateSystemSettings();
     }
 
@@ -98,6 +120,11 @@
     $: currentSystemStatus = channelData.systemStatus;
     $: currentThreshold = channelData.threshold;
     $: currentFeeds = channelData.feeds;
+
+    // Update local threshold when channel data changes
+    $: if (channelData.threshold !== localThreshold) {
+        localThreshold = channelData.threshold;
+    }
 </script>
 
 <main class="max-w-full space-y-2 px-2">
@@ -135,8 +162,8 @@
         <Card class="mt-2 grid min-w-full grid-cols-3 items-center gap-4 bg-red-100 md:mt-0">
             <Label class="col-span-2">
                 Moisture Threshold
-                <Range id="range-minmax" min="70" max="430" bind:value={currentThreshold} />
-                <p>Current Value: {currentThreshold}</p>
+                <Range id="range-minmax" min="70" max="430" bind:value={localThreshold} />
+                <p>Current Value: {localThreshold}</p>
                 <p class="text-xs text-gray-600">
                     Higher values = drier soil will trigger watering<br>
                     Sensor Range: 70 (Wet) to 430 (Dry)
