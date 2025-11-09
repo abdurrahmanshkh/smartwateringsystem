@@ -29,10 +29,11 @@
 
     async function fetchData() {
         try {
-            const response = await fetch('https://api.thingspeak.com/channels/2736648/feeds.json?results=100');
+            const response = await fetch('/api/feeds?limit=100');
+            if (!response.ok) throw new Error(`Status ${response.status}`);
             const data = await response.json();
             channelData = data;
-            calculateAnalytics(data.feeds);
+            calculateAnalytics(data.feeds || []);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -41,20 +42,25 @@
     }
 
     function calculateAnalytics(feeds) {
-        if (feeds.length === 0) return;
+        if (!feeds || feeds.length === 0) return;
 
-        // Existing moisture analysis
-        const moistureValues = feeds.map(f => parseInt(f.field1) || 0);
-        const pumpValues = feeds.map(f => f.field2 || '0');
+        // Convert to arrays of numbers (most recent last so reverse if needed)
+        // Our /api/feeds returns most recent first — reverse to make older->newer
+        const ordered = [...feeds].reverse();
 
-        analytics.totalReadings = feeds.length;
+        const moistureValues = ordered.map(f => parseInt(f.field1) || 0);
+        const pumpValues = ordered.map(f => f.field2 || '0');
+
+        analytics.totalReadings = ordered.length;
         analytics.avgMoisture = Math.round(moistureValues.reduce((a, b) => a + b, 0) / moistureValues.length);
         analytics.minMoisture = Math.min(...moistureValues);
         analytics.maxMoisture = Math.max(...moistureValues);
-        analytics.pumpActivations = pumpValues.filter(v => v === '1').length;
+        analytics.pumpActivations = pumpValues.filter(v => v === '1' || v === 1).length;
         
-        const recentAvg = moistureValues.slice(-10).reduce((a, b) => a + b, 0) / 10;
-        const olderAvg = moistureValues.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+        const last10 = moistureValues.slice(-10);
+        const first10 = moistureValues.slice(0, 10);
+        const recentAvg = last10.length ? (last10.reduce((a,b)=>a+b,0)/last10.length) : analytics.avgMoisture;
+        const olderAvg = first10.length ? (first10.reduce((a,b)=>a+b,0)/first10.length) : analytics.avgMoisture;
         
         if (recentAvg > olderAvg + 20) analytics.moistureTrend = 'drying';
         else if (recentAvg < olderAvg - 20) analytics.moistureTrend = 'wetting';
@@ -62,8 +68,8 @@
 
         analytics.wateringFrequency = (analytics.pumpActivations / analytics.totalReadings * 100).toFixed(1);
 
-        // NEW: Temperature analysis
-        const tempValues = feeds.map(f => parseInt(f.field5) || 0).filter(v => v > 0);
+        // Temperature analysis
+        const tempValues = ordered.map(f => parseInt(f.field5) || 0).filter(v => v > 0);
         if (tempValues.length > 0) {
             analytics.avgTemp = Math.round(tempValues.reduce((a, b) => a + b, 0) / tempValues.length);
             analytics.minTemp = Math.min(...tempValues);
@@ -77,8 +83,8 @@
             else analytics.tempTrend = 'stable';
         }
 
-        // NEW: Humidity analysis
-        const humidityValues = feeds.map(f => parseInt(f.field6) || 0).filter(v => v > 0);
+        // Humidity analysis
+        const humidityValues = ordered.map(f => parseInt(f.field6) || 0).filter(v => v > 0);
         if (humidityValues.length > 0) {
             analytics.avgHumidity = Math.round(humidityValues.reduce((a, b) => a + b, 0) / humidityValues.length);
             analytics.minHumidity = Math.min(...humidityValues);

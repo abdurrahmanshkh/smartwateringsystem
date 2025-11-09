@@ -18,33 +18,34 @@
         return matchesSearch && matchesCategory;
     });
 
-
     $: categories = ['all', ...new Set(plantsData.map(p => p.category))];
 
-
     function selectPlant(plant) {
-        selectedPlant = plant;
+        selectedPlant = JSON.parse(JSON.stringify(plant)); // clone
         showModal = true;
         activeTab = 'overview';
     }
 
-
     async function applyThreshold() {
+        if (!selectedPlant) return;
         applyingThreshold = true;
         
         try {
-            const apiKey = 'CV5WWIPTAVEW6RMD';
-            const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field4=${selectedPlant.threshold}`;
-            
-            const response = await fetch(url);
-            const data = await response.text();
-            
-            if (data !== '0') {
-                alert(`✓ Threshold updated to ${selectedPlant.threshold} for ${selectedPlant.name}!`);
-                showModal = false;
-            } else {
-                throw new Error('Failed to update threshold');
-            }
+            // POST to internal API to update threshold
+            const url = `/api/settings`;
+            const body = { threshold: selectedPlant.threshold };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) throw new Error(`Status ${response.status}`);
+            const resp = await response.json();
+            if (resp.ok === false) throw new Error(resp.error || 'Failed to update');
+
+            alert(`✓ Threshold updated to ${selectedPlant.threshold} for ${selectedPlant.name}!`);
+            showModal = false;
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to update threshold. Please try again.');
@@ -63,7 +64,7 @@
     function getHumidityColor(humidity) {
         if (humidity > 70) return 'blue';
         if (humidity >= 40) return 'green';
-        if (humidity > 30) return 'orange';
+        if (humidity > 30) return 'orange'; 
         return 'red';
     }
 </script>

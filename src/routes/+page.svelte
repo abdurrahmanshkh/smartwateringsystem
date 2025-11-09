@@ -104,7 +104,9 @@
     });
 
     async function fetchAllData() {
-        const url = 'https://api.thingspeak.com/channels/2736648/feeds.json?results=20';
+        // Use internal API instead of ThingSpeak
+        // relative path -> works on same deployment and avoids CORS issues
+        const url = `/api/feeds?limit=20`;
         
         try {
             connectionStatus = 'connecting';
@@ -117,21 +119,25 @@
             const data = await response.json();
             
             if (data.feeds && data.feeds.length > 0) {
-                const latestFeed = data.feeds[data.feeds.length - 1];
+                const latestFeed = data.feeds[data.feeds.length - 1] || data.feeds[0];
                 
                 channelData = {
                     moistureLevel: parseInt(latestFeed.field1) || 0,
-                    pumpStatus: latestFeed.field2 === '1' ? 'ON' : 'OFF',
+                    pumpStatus: (latestFeed.field2 === '1' || latestFeed.field2 === 1) ? 'ON' : 'OFF',
                     systemStatus: parseInt(latestFeed.field3) || 0,
                     threshold: parseInt(latestFeed.field4) || 250,
                     temperature: parseInt(latestFeed.field5) || 0,
                     humidity: parseInt(latestFeed.field6) || 0,
                     feeds: data.feeds,
-                    lastUpdate: new Date(latestFeed.created_at)
+                    lastUpdate: latestFeed.created_at ? new Date(latestFeed.created_at) : new Date()
                 };
                 
                 localThreshold = channelData.threshold;
                 error = '';
+                connectionStatus = 'connected';
+            } else {
+                // No feeds
+                channelData.feeds = [];
                 connectionStatus = 'connected';
             }
         } catch (err) {
@@ -148,26 +154,37 @@
         error = '';
         success = '';
         
-        const apiKey = 'CV5WWIPTAVEW6RMD';
-        const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field3=${channelData.systemStatus}&field4=${channelData.threshold}`;
+        const url = `/api/settings`;
 
         let attempts = 0;
         const maxAttempts = 5;
         let updateSuccess = false;
 
+        const body = {
+            systemStatus: channelData.systemStatus,
+            threshold: channelData.threshold
+        };
+
         while (attempts < maxAttempts && !updateSuccess) {
             try {
-                const response = await fetch(url);
-                const data = await response.text();
-                
-                if (data !== '0') {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) throw new Error(`Status ${response.status}`);
+
+                const resp = await response.json();
+                if (resp.ok !== false) {
                     updateSuccess = true;
                     success = 'Settings updated successfully! ✓';
                     error = '';
                     setTimeout(() => success = '', 3000);
-                    setTimeout(fetchAllData, 2000);
+                    // refresh after short delay to show updated values
+                    setTimeout(fetchAllData, 1200);
                 } else {
-                    throw new Error('ThingSpeak returned 0');
+                    throw new Error(resp.error || 'Unknown response');
                 }
             } catch (err) {
                 attempts++;
@@ -177,6 +194,7 @@
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     error = 'Failed to update. Please try again later.';
+                    console.error('updateSystemSettings error', err);
                 }
             }
         }
