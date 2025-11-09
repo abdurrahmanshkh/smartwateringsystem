@@ -6,8 +6,14 @@
     import { InfoCircleSolid, ExclamationCircleSolid, CheckCircleSolid } from 'flowbite-svelte-icons';
     import { onMount } from 'svelte';
 
+    // Sensor calibration (same as Arduino)
+    const WET_VALUE = 70;
+    const DRY_VALUE = 430;
+
+    // state
     let channelData = {
-        moistureLevel: 0,
+        moistureLevel: 0,    // raw sensor
+        moisturePercent: 0,  // mapped 0-100 where 100 = wet
         pumpStatus: 'OFF',
         systemStatus: 0,
         threshold: 250,
@@ -16,53 +22,85 @@
         feeds: [],
         lastUpdate: null
     };
-    
+
+    let currentPlant = null; // selected plant object from settings
+    let settings = {};       // full settings object from server
+
     let updating = false;
     let loading = true;
     let error = '';
     let success = '';
     let localThreshold = 250;
-    let connectionStatus = 'connected';
+    let connectionStatus = 'disconnected';
     let autoRefresh = true;
     let refreshInterval = 1000; // 1 second for livestreaming
 
     // Prevent overlapping fetches
     let isFetching = false;
 
-    $: healthScore = calculateHealthScore(channelData.moistureLevel, channelData.systemStatus);
-    $: moistureStatus = getMoistureStatus(channelData.moistureLevel);
+    // Track user editing / manual actions to avoid overwrites during live polling
+    let isEditingThreshold = false;
+    let lastManualChangeAt = 0; // ms since epoch; used to prevent immediate override
+
+    // derived reactive values
+    $: healthScore = calculateHealthScore(channelData.moisturePercent, channelData.systemStatus, currentPlant);
+    $: moistureStatus = getMoistureStatus(channelData.moisturePercent);
     $: systemUptime = channelData.feeds.length > 0 ? calculateUptime(channelData.feeds) : '0h 0m';
     $: tempStatus = getTemperatureStatus(channelData.temperature);
     $: humidityStatus = getHumidityStatus(channelData.humidity);
 
-    function calculateHealthScore(moisture, status) {
+    // helper: map a value between ranges
+    function mapRange(value, inMin, inMax, outMin, outMax) {
+        if (inMax === inMin) return outMin;
+        return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+    }
+
+    // compute the health score; if we have a plant, compute relative to plant ideal range
+    function calculateHealthScore(moisturePercent, status, plant) {
         if (status === 0) return { score: 0, label: 'System Off', color: 'gray' };
-        
+
+        if (plant && Number.isFinite(Number(plant.moisture_min)) && Number.isFinite(Number(plant.moisture_max)) && Number(plant.moisture_max) > Number(plant.moisture_min)) {
+            const idealMin = Number(plant.moisture_min);
+            const idealMax = Number(plant.moisture_max);
+
+            if (moisturePercent >= idealMin && moisturePercent <= idealMax) {
+                return { score: 95, label: 'Excellent (Plant Optimal)', color: 'green' };
+            }
+
+            const distance = moisturePercent < idealMin ? (idealMin - moisturePercent) : (moisturePercent - idealMax);
+            const penalty = Math.min(80, Math.round(distance * 1.5));
+            const score = Math.max(10, 95 - penalty);
+
+            const label = score >= 85 ? 'Good' : score >= 70 ? 'Fair' : 'Poor';
+            const color = score >= 85 ? 'green' : score >= 70 ? 'blue' : score >= 50 ? 'yellow' : 'red';
+            return { score, label: `${label} (Plant-aware)`, color };
+        }
+
+        // fallback: generic scoring using percent
         let score = 100;
-        if (moisture > 350) score = 30;
-        else if (moisture > 300) score = 60;
-        else if (moisture > 250) score = 85;
-        else if (moisture > 150) score = 100;
-        else if (moisture > 100) score = 75;
+        if (moisturePercent < 15) score = 30;
+        else if (moisturePercent < 25) score = 60;
+        else if (moisturePercent < 40) score = 85;
+        else if (moisturePercent < 70) score = 100;
+        else if (moisturePercent < 85) score = 75;
         else score = 40;
-        
+
         const label = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Fair' : 'Poor';
         const color = score >= 85 ? 'green' : score >= 70 ? 'blue' : score >= 50 ? 'yellow' : 'red';
-        
         return { score, label, color };
     }
 
-    function getMoistureStatus(moisture) {
-        if (moisture > 350) return { text: 'Critical - Very Dry', color: 'red', icon: '🔴' };
-        if (moisture > 300) return { text: 'Dry - Needs Water', color: 'orange', icon: '🟠' };
-        if (moisture > 250) return { text: 'Slightly Dry', color: 'yellow', icon: '🟡' };
-        if (moisture > 150) return { text: 'Optimal', color: 'green', icon: '🟢' };
-        if (moisture > 100) return { text: 'Slightly Wet', color: 'blue', icon: '🔵' };
-        return { text: 'Too Wet', color: 'purple', icon: '🟣' };
+    function getMoistureStatus(moisturePercent) {
+        if (moisturePercent >= 85) return { text: 'Too Wet', color: 'purple', icon: '🟣' };
+        if (moisturePercent >= 70) return { text: 'Slightly Wet', color: 'blue', icon: '🔵' };
+        if (moisturePercent >= 50) return { text: 'Optimal', color: 'green', icon: '🟢' };
+        if (moisturePercent >= 30) return { text: 'Slightly Dry', color: 'yellow', icon: '🟡' };
+        if (moisturePercent >= 15) return { text: 'Dry - Needs Water', color: 'orange', icon: '🟠' };
+        return { text: 'Critical - Very Dry', color: 'red', icon: '🔴' };
     }
 
     function getTemperatureStatus(temp) {
-        if (temp === 0) return { text: 'No Data', color: 'gray', icon: '❌' };
+        if (!temp) return { text: 'No Data', color: 'gray', icon: '❌' };
         if (temp > 35) return { text: 'Too Hot', color: 'red', icon: '🔥' };
         if (temp > 28) return { text: 'Warm', color: 'orange', icon: '☀️' };
         if (temp >= 18 && temp <= 28) return { text: 'Optimal', color: 'green', icon: '✅' };
@@ -71,7 +109,7 @@
     }
 
     function getHumidityStatus(humidity) {
-        if (humidity === 0) return { text: 'No Data', color: 'gray', icon: '❌' };
+        if (!humidity) return { text: 'No Data', color: 'gray', icon: '❌' };
         if (humidity > 80) return { text: 'Very Humid', color: 'blue', icon: '🌧️' };
         if (humidity > 60) return { text: 'Humid', color: 'cyan', icon: '☁️' };
         if (humidity >= 40 && humidity <= 70) return { text: 'Optimal', color: 'green', icon: '✅' };
@@ -94,62 +132,119 @@
         return `${diffHrs}h ${diffMins}m`;
     }
 
-    onMount(() => {
-        // Initial fetch
-        fetchAllData();
-        
-        // Polling interval for livestream (1s by default)
-        const intervalId = setInterval(() => {
-            if (autoRefresh) {
-                fetchAllData();
+    // Fetch settings (selected plant, threshold, systemStatus) — less frequent (every 5s)
+    async function fetchSettings() {
+        try {
+            const resp = await fetch('/api/settings', { cache: 'no-store' });
+            if (!resp.ok) throw new Error(`Status ${resp.status}`);
+            const data = await resp.json();
+            settings = data || {};
+
+            // Map settings fields defensively
+            if (settings.selectedPlant) currentPlant = settings.selectedPlant;
+            else if (settings.plant) currentPlant = settings.plant;
+            else currentPlant = null;
+
+            // only override channelData.threshold/localThreshold if user isn't editing and lastManualChange is older than 3s
+            const now = Date.now();
+            if (settings.threshold !== undefined && !isEditingThreshold && (now - lastManualChangeAt > 3000)) {
+                channelData.threshold = Number(settings.threshold);
+                localThreshold = channelData.threshold;
             }
+            if (settings.systemStatus !== undefined && (now - lastManualChangeAt > 3000)) {
+                channelData.systemStatus = Number(settings.systemStatus);
+            }
+        } catch (err) {
+            // don't break livestream if settings fail; just log
+            console.warn('Failed to fetch settings:', err);
+        }
+    }
+
+    onMount(() => {
+        // initial loads
+        fetchAllData();
+        fetchSettings();
+
+        // Polling intervals
+        const feedsInterval = setInterval(() => {
+            if (autoRefresh) fetchAllData();
         }, refreshInterval);
-        
-        return () => clearInterval(intervalId);
+
+        const settingsInterval = setInterval(() => {
+            // fetch settings less frequently to avoid clobbering user edits
+            if (autoRefresh) fetchSettings();
+        }, 5000);
+
+        return () => {
+            clearInterval(feedsInterval);
+            clearInterval(settingsInterval);
+        };
     });
 
+    // Main fetch: feeds + integrate settings
     async function fetchAllData() {
-        // Avoid overlapping requests
         if (isFetching) return;
         isFetching = true;
 
         const url = `/api/feeds?limit=20`;
 
         try {
-            connectionStatus = 'connecting';
-            const response = await fetch(url, { cache: 'no-store' }); // no-store to help livestreaming
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
             const feedsRaw = Array.isArray(data.feeds) ? data.feeds : [];
 
             if (feedsRaw.length > 0) {
-                // Convert to oldest->newest so existing uptime and child components keep working
+                // API returns most-recent-first; reverse to oldest->newest for components
                 const feeds = [...feedsRaw].reverse();
-
                 const latestFeed = feeds[feeds.length - 1];
 
+                // parse numbers defensively
+                const rawMoisture = parseInt(latestFeed.field1) || 0;
+                const pump = (latestFeed.field2 === '1' || latestFeed.field2 === 1) ? 'ON' : 'OFF';
+                const feedSysStatus = Number.isFinite(Number(latestFeed.field3)) ? parseInt(latestFeed.field3) : channelData.systemStatus;
+                const feedThr = (latestFeed.field4 !== undefined && latestFeed.field4 !== null && latestFeed.field4 !== '') ? parseInt(latestFeed.field4) : channelData.threshold;
+                const temp = parseInt(latestFeed.field5) || 0;
+                const hum = parseInt(latestFeed.field6) || 0;
+                const createdAt = latestFeed.created_at ? new Date(latestFeed.created_at) : new Date();
+
+                // map raw sensor to percent (100 = wet, 0 = dry) and clamp
+                let sensorPercent = Math.round(mapRange(rawMoisture, WET_VALUE, DRY_VALUE, 100, 0));
+                sensorPercent = Math.max(0, Math.min(100, sensorPercent));
+
+                const now = Date.now();
+
+                // Only update threshold/localThreshold if user isn't currently editing and no recent manual change
+                if (!isEditingThreshold && (now - lastManualChangeAt > 3000)) {
+                    channelData.threshold = feedThr;
+                    localThreshold = feedThr;
+                }
+
+                // Only update systemStatus from feed if no recent manual toggle
+                if (now - lastManualChangeAt > 3000) {
+                    channelData.systemStatus = feedSysStatus;
+                }
+
                 channelData = {
-                    moistureLevel: parseInt(latestFeed.field1) || 0,
-                    pumpStatus: (latestFeed.field2 === '1' || latestFeed.field2 === 1) ? 'ON' : 'OFF',
-                    systemStatus: Number.isFinite(Number(latestFeed.field3)) ? parseInt(latestFeed.field3) : (channelData.systemStatus || 0),
-                    threshold: parseInt(latestFeed.field4) || channelData.threshold || 250,
-                    temperature: parseInt(latestFeed.field5) || 0,
-                    humidity: parseInt(latestFeed.field6) || 0,
+                    ...channelData,
+                    moistureLevel: rawMoisture,
+                    moisturePercent: sensorPercent,
+                    pumpStatus: pump,
+                    temperature: temp,
+                    humidity: hum,
                     feeds,
-                    lastUpdate: latestFeed.created_at ? new Date(latestFeed.created_at) : new Date()
+                    lastUpdate: createdAt
                 };
 
-                // Keep localThreshold in sync so slider shows current value
-                localThreshold = channelData.threshold;
+                // calculate online/offline using timestamp age (5s threshold)
+                const ageSec = (Date.now() - createdAt.getTime()) / 1000;
+                connectionStatus = ageSec <= 5 ? 'connected' : 'disconnected';
+
                 error = '';
-                connectionStatus = 'connected';
             } else {
-                // No feeds available
-                channelData.feeds = [];
-                connectionStatus = 'connected';
+                // no feeds -> mark as disconnected & keep existing data
+                connectionStatus = 'disconnected';
             }
         } catch (err) {
             console.error('Error fetching data:', err);
@@ -161,7 +256,22 @@
         }
     }
 
-    // Single-shot update to /api/settings (no retries)
+    // User started editing slider
+    function onThresholdInput(e) {
+        // e.detail or e.target? Flowbite Range forwards input event and value binding still works via bind:value.
+        isEditingThreshold = true;
+        lastManualChangeAt = Date.now();
+        // localThreshold already bound; ensure it's numeric
+        localThreshold = Number(localThreshold);
+    }
+
+    // User finished interacting slider (optional)
+    function onThresholdChange(e) {
+        // keep editing true until user explicitly clicks Update
+        lastManualChangeAt = Date.now();
+    }
+
+    // Single-shot update to /api/settings (no retries). Include currentPlant when present.
     async function updateSystemSettings() {
         updating = true;
         error = '';
@@ -172,6 +282,9 @@
             systemStatus: channelData.systemStatus,
             threshold: channelData.threshold
         };
+
+        // include plant info if available (so server can persist selectedPlant)
+        if (currentPlant) body.plant = currentPlant;
 
         try {
             const response = await fetch(url, {
@@ -191,7 +304,11 @@
             }
 
             success = 'Settings updated successfully! ✓';
-            // Immediately refresh data once to reflect changes in UI
+            // mark the manual change time so incoming polls don't immediately overwrite
+            lastManualChangeAt = Date.now();
+            // refresh settings once
+            await fetchSettings();
+            // refresh feeds quickly to reflect changes
             await fetchAllData();
             setTimeout(() => success = '', 2000);
         } catch (err) {
@@ -202,16 +319,108 @@
         }
     }
 
-    function toggleSystemStatus() {
-        // Toggle locally for instant UI feedback, then send to server
-        channelData.systemStatus = channelData.systemStatus === 1 ? 0 : 1;
-        updateSystemSettings();
+    // Apply threshold explicitly (user action)
+    async function updateThreshold() {
+        // apply local value to channelData for instant feedback
+        channelData.threshold = Number(localThreshold);
+        // mark editing done (we will allow server to sync after manual change window)
+        // but keep isEditingThreshold true until server confirms; set manual timestamp
+        lastManualChangeAt = Date.now();
+
+        // send update (includes selected plant if present)
+        updating = true;
+        error = '';
+        success = '';
+
+        const url = `/api/settings`;
+        const body = {
+            threshold: channelData.threshold
+        };
+        if (currentPlant) body.plant = currentPlant;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const text = await response.text().catch(()=>null);
+                throw new Error(`Status ${response.status}${text ? ` - ${text}` : ''}`);
+            }
+
+            const resp = await response.json();
+            if (resp && resp.ok === false) {
+                throw new Error(resp.error || 'Server rejected update');
+            }
+
+            success = `Threshold updated to ${channelData.threshold} ✓`;
+            // stop editing after successful save
+            isEditingThreshold = false;
+            lastManualChangeAt = Date.now();
+            // refresh settings and feeds
+            await fetchSettings();
+            await fetchAllData();
+            setTimeout(() => success = '', 2000);
+        } catch (err) {
+            console.error('updateThreshold error', err);
+            error = `Failed to update threshold: ${err.message}`;
+        } finally {
+            updating = false;
+        }
     }
 
-    function updateThreshold() {
-        // Apply the slider value locally then send to server
-        channelData.threshold = localThreshold;
-        updateSystemSettings();
+    // Toggle system status (immediate optimistic UI, then server)
+    async function toggleSystemStatus() {
+        // don't allow toggle if already updating or offline
+        if (updating || connectionStatus === 'disconnected') return;
+
+        const newStatus = channelData.systemStatus === 1 ? 0 : 1;
+        // optimistic UI
+        channelData.systemStatus = newStatus;
+        lastManualChangeAt = Date.now();
+        updating = true;
+        error = '';
+        success = '';
+
+        const url = `/api/settings`;
+        const body = {
+            systemStatus: newStatus
+        };
+        if (currentPlant) body.plant = currentPlant;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const text = await response.text().catch(()=>null);
+                throw new Error(`Status ${response.status}${text ? ` - ${text}` : ''}`);
+            }
+
+            const resp = await response.json();
+            if (resp && resp.ok === false) {
+                throw new Error(resp.error || 'Server rejected update');
+            }
+
+            success = newStatus === 1 ? 'System turned ON' : 'System turned OFF';
+            lastManualChangeAt = Date.now();
+            // refresh settings/feeds once
+            await fetchSettings();
+            await fetchAllData();
+            setTimeout(() => success = '', 2000);
+        } catch (err) {
+            console.error('toggleSystemStatus error', err);
+            // revert optimistic UI on failure
+            channelData.systemStatus = newStatus === 1 ? 0 : 1;
+            error = `Failed to change system status: ${err.message}`;
+        } finally {
+            updating = false;
+        }
     }
 
     $: lastUpdateText = channelData.lastUpdate 
@@ -235,6 +444,25 @@
                 <Badge color={connectionStatus === 'connected' ? 'green' : 'red'} class="text-xs">
                     {connectionStatus === 'connected' ? '● Online' : '● Offline'}
                 </Badge>
+            </div>
+
+            <!-- Current Plant Summary -->
+            <div class="mt-3">
+                {#if currentPlant}
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-md bg-green-50 border border-green-100">
+                            <div class="font-semibold text-green-700">{currentPlant.name}</div>
+                            <div class="text-xs text-gray-600">{currentPlant.category || 'Custom'}</div>
+                        </div>
+                        <div class="text-sm text-gray-700">
+                            <div>Threshold: <strong>{currentPlant.threshold ?? channelData.threshold}</strong></div>
+                            <div>Moisture ideal: <strong>{currentPlant.moisture_min ?? '—'}% - {currentPlant.moisture_max ?? '—'}%</strong></div>
+                            <div class="text-xs text-gray-500 mt-1">{currentPlant.description}</div>
+                        </div>
+                    </div>
+                {:else}
+                    <div class="text-sm text-gray-600">No plant selected. Choose a plant on the <a class="text-blue-600 underline" href="/plants">Plants</a> page.</div>
+                {/if}
             </div>
         </div>
         
@@ -268,9 +496,11 @@
             <span class="text-sm">{success}</span>
         </Alert>
     {:else if !loading}
-        <Alert color="green" dismissable class="shadow-sm">
+        <Alert color={connectionStatus === 'connected' ? 'green' : 'yellow'} dismissable class="shadow-sm">
             <CheckCircleSolid slot="icon" class="h-4 w-4" />
-            <span class="text-sm"><span class="font-semibold">All systems operational</span> - Monitoring {channelData.feeds.length} data points</span>
+            <span class="text-sm">
+                {connectionStatus === 'connected' ? 'Live data streaming' : 'Device offline — showing last known data'} — Monitoring {channelData.feeds.length} data points
+            </span>
         </Alert>
     {/if}
 
@@ -298,8 +528,11 @@
                     <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1">System Health</h3>
                     <Badge color={healthScore.color} class="mb-1.5">{healthScore.label}</Badge>
                     <p class="text-sm text-gray-600 flex items-center gap-1.5">
-                        {moistureStatus.icon} {moistureStatus.text}
+                        {moistureStatus.icon} {moistureStatus.text} — {channelData.moisturePercent}% (sensor)
                     </p>
+                    {#if currentPlant}
+                        <p class="text-xs text-gray-500 mt-1">Plant ideal: {currentPlant.moisture_min ?? '—'}% - {currentPlant.moisture_max ?? '—'}%</p>
+                    {/if}
                 </div>
             </div>
             
@@ -318,7 +551,7 @@
                 <div class="text-center p-3 bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg border border-teal-200">
                     <div class="text-xl mb-1">💧</div>
                     <p class="text-xs text-gray-600">Moisture</p>
-                    <p class="text-sm font-bold text-gray-900">{channelData.moistureLevel}</p>
+                    <p class="text-sm font-bold text-gray-900">{channelData.moisturePercent}%</p>
                 </div>
                 <div class="text-center p-3 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
                     <div class="text-xl mb-1">{channelData.pumpStatus === 'ON' ? '🔄' : '⏸️'}</div>
@@ -329,7 +562,7 @@
         </div>
     </Card>
 
-    <!-- Climate Status Quick View (NEW) -->
+    <!-- Climate Status Quick View -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <Card class="min-w-full shadow-md border border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100">
             <div class="flex justify-between items-center">
@@ -373,7 +606,7 @@
                     color={channelData.systemStatus === 1 ? 'red' : 'green'}
                     size="sm"
                     on:click={toggleSystemStatus}
-                    disabled={updating}
+                    disabled={updating || connectionStatus === 'disconnected'}
                 >
                     {updating ? 'Processing...' : channelData.systemStatus === 1 ? '⏸️ Pause' : '▶️ Start'}
                 </Button>
@@ -393,7 +626,7 @@
         <Waterpump pumpStatus={channelData.pumpStatus} feeds={channelData.feeds} />
     </div>
 
-    <!-- Climate Conditions Component (NEW) -->
+    <!-- Climate Conditions Component -->
     <ClimateConditions 
         temperature={channelData.temperature}
         humidity={channelData.humidity}
@@ -483,6 +716,8 @@
                             min="70"
                             max="430"
                             bind:value={localThreshold}
+                            on:input={onThresholdInput}
+                            on:change={onThresholdChange}
                         />
                     </Label>
 
@@ -510,7 +745,7 @@
                         <Button
                             on:click={updateThreshold}
                             color="red"
-                            disabled={updating || localThreshold === channelData.threshold}
+                            disabled={updating || Number(localThreshold) === Number(channelData.threshold)}
                             class="font-semibold mt-3 md:mt-0 w-full md:w-auto"
                         >
                             {#if updating}
