@@ -24,7 +24,10 @@
     let localThreshold = 250;
     let connectionStatus = 'connected';
     let autoRefresh = true;
-    let refreshInterval = 1000;
+    let refreshInterval = 1000; // 1 second for livestreaming
+
+    // Prevent overlapping fetches
+    let isFetching = false;
 
     $: healthScore = calculateHealthScore(channelData.moistureLevel, channelData.systemStatus);
     $: moistureStatus = getMoistureStatus(channelData.moistureLevel);
@@ -92,8 +95,10 @@
     }
 
     onMount(() => {
+        // Initial fetch
         fetchAllData();
         
+        // Polling interval for livestream (1s by default)
         const intervalId = setInterval(() => {
             if (autoRefresh) {
                 fetchAllData();
@@ -104,39 +109,45 @@
     });
 
     async function fetchAllData() {
-        // Use internal API instead of ThingSpeak
-        // relative path -> works on same deployment and avoids CORS issues
+        // Avoid overlapping requests
+        if (isFetching) return;
+        isFetching = true;
+
         const url = `/api/feeds?limit=20`;
-        
+
         try {
             connectionStatus = 'connecting';
-            const response = await fetch(url);
-            
+            const response = await fetch(url, { cache: 'no-store' }); // no-store to help livestreaming
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
-            if (data.feeds && data.feeds.length > 0) {
-                const latestFeed = data.feeds[data.feeds.length - 1] || data.feeds[0];
-                
+            const feedsRaw = Array.isArray(data.feeds) ? data.feeds : [];
+
+            if (feedsRaw.length > 0) {
+                // Convert to oldest->newest so existing uptime and child components keep working
+                const feeds = [...feedsRaw].reverse();
+
+                const latestFeed = feeds[feeds.length - 1];
+
                 channelData = {
                     moistureLevel: parseInt(latestFeed.field1) || 0,
                     pumpStatus: (latestFeed.field2 === '1' || latestFeed.field2 === 1) ? 'ON' : 'OFF',
-                    systemStatus: parseInt(latestFeed.field3) || 0,
-                    threshold: parseInt(latestFeed.field4) || 250,
+                    systemStatus: Number.isFinite(Number(latestFeed.field3)) ? parseInt(latestFeed.field3) : (channelData.systemStatus || 0),
+                    threshold: parseInt(latestFeed.field4) || channelData.threshold || 250,
                     temperature: parseInt(latestFeed.field5) || 0,
                     humidity: parseInt(latestFeed.field6) || 0,
-                    feeds: data.feeds,
+                    feeds,
                     lastUpdate: latestFeed.created_at ? new Date(latestFeed.created_at) : new Date()
                 };
-                
+
+                // Keep localThreshold in sync so slider shows current value
                 localThreshold = channelData.threshold;
                 error = '';
                 connectionStatus = 'connected';
             } else {
-                // No feeds
+                // No feeds available
                 channelData.feeds = [];
                 connectionStatus = 'connected';
             }
@@ -146,68 +157,59 @@
             connectionStatus = 'disconnected';
         } finally {
             loading = false;
+            isFetching = false;
         }
     }
 
+    // Single-shot update to /api/settings (no retries)
     async function updateSystemSettings() {
         updating = true;
         error = '';
         success = '';
-        
+
         const url = `/api/settings`;
-
-        let attempts = 0;
-        const maxAttempts = 5;
-        let updateSuccess = false;
-
         const body = {
             systemStatus: channelData.systemStatus,
             threshold: channelData.threshold
         };
 
-        while (attempts < maxAttempts && !updateSuccess) {
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-                if (!response.ok) throw new Error(`Status ${response.status}`);
-
-                const resp = await response.json();
-                if (resp.ok !== false) {
-                    updateSuccess = true;
-                    success = 'Settings updated successfully! ✓';
-                    error = '';
-                    setTimeout(() => success = '', 3000);
-                    // refresh after short delay to show updated values
-                    setTimeout(fetchAllData, 1200);
-                } else {
-                    throw new Error(resp.error || 'Unknown response');
-                }
-            } catch (err) {
-                attempts++;
-                
-                if (attempts < maxAttempts) {
-                    const delay = Math.min(1000 * Math.pow(2, attempts), 1000);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    error = 'Failed to update. Please try again later.';
-                    console.error('updateSystemSettings error', err);
-                }
+            if (!response.ok) {
+                const text = await response.text().catch(()=>null);
+                throw new Error(`Status ${response.status}${text ? ` - ${text}` : ''}`);
             }
+
+            const resp = await response.json();
+            if (resp && resp.ok === false) {
+                throw new Error(resp.error || 'Server rejected update');
+            }
+
+            success = 'Settings updated successfully! ✓';
+            // Immediately refresh data once to reflect changes in UI
+            await fetchAllData();
+            setTimeout(() => success = '', 2000);
+        } catch (err) {
+            console.error('updateSystemSettings error', err);
+            error = `Failed to update settings: ${err.message}`;
+        } finally {
+            updating = false;
         }
-        
-        updating = false;
     }
 
     function toggleSystemStatus() {
+        // Toggle locally for instant UI feedback, then send to server
         channelData.systemStatus = channelData.systemStatus === 1 ? 0 : 1;
         updateSystemSettings();
     }
 
     function updateThreshold() {
+        // Apply the slider value locally then send to server
         channelData.threshold = localThreshold;
         updateSystemSettings();
     }
@@ -241,8 +243,8 @@
                 <Toggle bind:checked={autoRefresh} size="small" />
                 <span class="text-xs md:text-sm font-medium text-gray-700">Auto-refresh</span>
             </div>
-            <Button on:click={fetchAllData} disabled={loading} size="sm" color="light" class="shadow-sm">
-                {#if loading}
+            <Button on:click={fetchAllData} disabled={loading || isFetching} size="sm" color="light" class="shadow-sm">
+                {#if loading || isFetching}
                     <Spinner size="4" class="mr-1.5" />
                 {:else}
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
