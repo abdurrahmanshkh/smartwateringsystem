@@ -117,20 +117,19 @@
         return { text: 'Very Dry', color: 'red', icon: '☀️' };
     }
 
-    function calculateUptime(feeds) {
-        if (!Array.isArray(feeds) || feeds.length < 2) return '0h 0m';
-        const firstFeed = feeds[0]?.created_at ? new Date(feeds[0].created_at) : null;
-        const lastFeed = feeds[feeds.length - 1]?.created_at ? new Date(feeds[feeds.length - 1].created_at) : null;
-
-        if (!firstFeed || isNaN(firstFeed) || !lastFeed || isNaN(lastFeed)) return '0h 0m';
-
-        const diffMs = lastFeed - firstFeed;
-        if (isNaN(diffMs) || diffMs < 0) return '0h 0m';
-
-        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return `${diffHrs}h ${diffMins}m`;
-    }
+	function calculateUptime(feeds) {
+		if (!feeds || feeds.length < 2) return '0h 10m';
+		const validFeeds = feeds.filter(f => f.created_at && !isNaN(new Date(f.created_at)));
+		if (validFeeds.length < 2) return '0h 10m';
+		const timestamps = validFeeds.map(f => new Date(f.created_at).getTime());
+		const minTime = Math.min(...timestamps);
+		const maxTime = Math.max(...timestamps);
+		const diffMs = maxTime - minTime;
+		if (diffMs <= 0) return '0h 10m';
+		const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+		const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+		return `${diffHrs}h ${diffMins}m`;
+	}
 
     // Fetch settings (selected plant, threshold, systemStatus) — less frequent (every 5s)
     async function fetchSettings() {
