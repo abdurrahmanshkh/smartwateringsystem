@@ -24,7 +24,7 @@
     let localThreshold = 250;
     let connectionStatus = 'connected';
     let autoRefresh = true;
-    let refreshInterval = 10000;
+    let refreshInterval = 1000;
 
     $: healthScore = calculateHealthScore(channelData.moistureLevel, channelData.systemStatus);
     $: moistureStatus = getMoistureStatus(channelData.moistureLevel);
@@ -190,7 +190,7 @@
                 attempts++;
                 
                 if (attempts < maxAttempts) {
-                    const delay = Math.min(1000 * Math.pow(2, attempts), 10000);
+                    const delay = Math.min(1000 * Math.pow(2, attempts), 1000);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     error = 'Failed to update. Please try again later.';
