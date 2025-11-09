@@ -30,10 +30,15 @@ export const POST = async ({ request }) => {
     const body = await request.json();
     const db = await getDb();
 
+    const updates = {};
+    if (body.threshold !== undefined) updates.threshold = body.threshold;
+    if (body.systemStatus !== undefined) updates.systemStatus = body.systemStatus;
+    if (body.plant !== undefined) updates.selectedPlant = body.plant;
+
     await db.collection('settings').updateOne(
-      { _id: 'singleton' },
-      { $set: body },
-      { upsert: true }
+        { _id: 'singleton' },
+        { $set: updates },
+        { upsert: true }
     );
 
     return json({ ok: true }, { headers: { 'Access-Control-Allow-Origin': '*' } });
