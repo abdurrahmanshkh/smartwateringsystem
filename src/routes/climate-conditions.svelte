@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { Card, Chart, Badge, ProgressBar } from 'flowbite-svelte';
-    import { TrendingUpOutline, TrendingDownOutline } from 'flowbite-svelte-icons';
+    import { Card, Chart, Badge, Progressbar } from 'flowbite-svelte';
+    import { ArrowUpOutline, ArrowDownOutline } from 'flowbite-svelte-icons';
 
     export let temperature = 0;
     export let humidity = 0;
@@ -164,7 +164,7 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
     <!-- Temperature Card -->
-    <Card class="shadow-lg border border-orange-200 bg-gradient-to-br from-white to-orange-50/30">
+    <Card class="min-w-full shadow-lg border border-orange-200 bg-gradient-to-br from-white to-orange-50/30">
         <div class="space-y-4">
             <!-- Header -->
             <div class="flex justify-between items-center pb-3 border-b border-orange-200">
@@ -196,9 +196,9 @@
             <div class="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div>
                     {#if tempTrend === 'rising'}
-                        <TrendingUpOutline class="w-5 h-5 text-orange-600" />
+                        <ArrowUpOutline class="w-5 h-5 text-orange-600" />
                     {:else if tempTrend === 'falling'}
-                        <TrendingDownOutline class="w-5 h-5 text-blue-600" />
+                        <ArrowDownOutline class="w-5 h-5 text-blue-600" />
                     {:else}
                         <span class="text-lg">➡️</span>
                     {/if}
@@ -219,7 +219,7 @@
     </Card>
 
     <!-- Humidity Card -->
-    <Card class="shadow-lg border border-cyan-200 bg-gradient-to-br from-white to-cyan-50/30">
+    <Card class="min-w-full shadow-lg border border-cyan-200 bg-gradient-to-br from-white to-cyan-50/30">
         <div class="space-y-4">
             <!-- Header -->
             <div class="flex justify-between items-center pb-3 border-b border-cyan-200">
@@ -253,16 +253,16 @@
                     <span class="font-medium text-gray-700">Humidity Level</span>
                     <span class="text-cyan-600 font-bold">{humidity}% / 100%</span>
                 </div>
-                <ProgressBar progress={humidity} size="lg" color="cyan" />
+                <Progressbar progress={humidity} size="lg" color="cyan" />
             </div>
 
             <!-- Trend -->
             <div class="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
                 <div>
                     {#if humidityTrend === 'rising'}
-                        <TrendingUpOutline class="w-5 h-5 text-cyan-600" />
+                        <ArrowUpOutline class="w-5 h-5 text-cyan-600" />
                     {:else if humidityTrend === 'falling'}
-                        <TrendingDownOutline class="w-5 h-5 text-blue-600" />
+                        <ArrowDownOutline class="w-5 h-5 text-blue-600" />
                     {:else}
                         <span class="text-lg">➡️</span>
                     {/if}
