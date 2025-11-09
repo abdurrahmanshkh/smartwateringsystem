@@ -1,291 +1,278 @@
 <script>
-    import { Card, Badge, Spinner, Progressbar } from 'flowbite-svelte';
-    import { onMount } from 'svelte';
-    
-    let loading = true;
-    let channelData = { feeds: [] };
-    let analytics = {
-        totalReadings: 0,
-        avgMoisture: 0,
-        minMoisture: 0,
-        maxMoisture: 0,
-        pumpActivations: 0,
-        wateringFrequency: 0,
-        moistureTrend: 'stable',
-        // NEW: Temperature and Humidity
-        avgTemp: 0,
-        minTemp: 0,
-        maxTemp: 0,
-        tempTrend: 'stable',
-        avgHumidity: 0,
-        minHumidity: 0,
-        maxHumidity: 0,
-        humidityTrend: 'stable'
-    };
+	import { Card, Badge, Spinner, Progressbar, Alert } from 'flowbite-svelte';
+	import { onMount } from 'svelte';
 
-    onMount(async () => {
-        await fetchData();
-    });
+	let loading = true;
+	let error = '';
+	let channelData = { feeds: [] };
+	let plants = []; // NEW: store distinct plant/unit data if present
 
-    async function fetchData() {
-        try {
-            const response = await fetch('/api/feeds?limit=100');
-            if (!response.ok) throw new Error(`Status ${response.status}`);
-            const data = await response.json();
-            channelData = data;
-            calculateAnalytics(data.feeds || []);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        } finally {
-            loading = false;
-        }
-    }
+	let analytics = {
+		totalReadings: 0,
+		avgMoisture: 0,
+		minMoisture: 0,
+		maxMoisture: 0,
+		pumpActivations: 0,
+		wateringFrequency: 0,
+		moistureTrend: 'stable',
 
-    function calculateAnalytics(feeds) {
-        if (!feeds || feeds.length === 0) return;
+		// Temperature & Humidity
+		avgTemp: 0,
+		minTemp: 0,
+		maxTemp: 0,
+		tempTrend: 'stable',
+		avgHumidity: 0,
+		minHumidity: 0,
+		maxHumidity: 0,
+		humidityTrend: 'stable'
+	};
 
-        // Convert to arrays of numbers (most recent last so reverse if needed)
-        // Our /api/feeds returns most recent first — reverse to make older->newer
-        const ordered = [...feeds].reverse();
+	onMount(() => {
+		fetchData();
+	});
 
-        const moistureValues = ordered.map(f => parseInt(f.field1) || 0);
-        const pumpValues = ordered.map(f => f.field2 || '0');
+	async function fetchData() {
+		try {
+			loading = true;
+			error = '';
+			const res = await fetch('/api/feeds?limit=150', { cache: 'no-store' });
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = await res.json();
+			channelData = data;
+			const feeds = Array.isArray(data.feeds) ? data.feeds : [];
 
-        analytics.totalReadings = ordered.length;
-        analytics.avgMoisture = Math.round(moistureValues.reduce((a, b) => a + b, 0) / moistureValues.length);
-        analytics.minMoisture = Math.min(...moistureValues);
-        analytics.maxMoisture = Math.max(...moistureValues);
-        analytics.pumpActivations = pumpValues.filter(v => v === '1' || v === 1).length;
-        
-        const last10 = moistureValues.slice(-10);
-        const first10 = moistureValues.slice(0, 10);
-        const recentAvg = last10.length ? (last10.reduce((a,b)=>a+b,0)/last10.length) : analytics.avgMoisture;
-        const olderAvg = first10.length ? (first10.reduce((a,b)=>a+b,0)/first10.length) : analytics.avgMoisture;
-        
-        if (recentAvg > olderAvg + 20) analytics.moistureTrend = 'drying';
-        else if (recentAvg < olderAvg - 20) analytics.moistureTrend = 'wetting';
-        else analytics.moistureTrend = 'stable';
+			if (feeds.length === 0) throw new Error('No data received from server.');
 
-        analytics.wateringFrequency = (analytics.pumpActivations / analytics.totalReadings * 100).toFixed(1);
+			// Detect distinct plants if the backend includes "plantId" or "unit" field
+			const plantKeys = [...new Set(feeds.map(f => f.plantId || f.unit || 'Default'))];
+			plants = plantKeys.map(key => ({
+				name: key,
+				readings: feeds.filter(f => (f.plantId || f.unit || 'Default') === key)
+			}));
 
-        // Temperature analysis
-        const tempValues = ordered.map(f => parseInt(f.field5) || 0).filter(v => v > 0);
-        if (tempValues.length > 0) {
-            analytics.avgTemp = Math.round(tempValues.reduce((a, b) => a + b, 0) / tempValues.length);
-            analytics.minTemp = Math.min(...tempValues);
-            analytics.maxTemp = Math.max(...tempValues);
-            
-            const recentTemp = tempValues.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, tempValues.length);
-            const olderTemp = tempValues.slice(0, 10).reduce((a, b) => a + b, 0) / Math.min(10, tempValues.length);
-            
-            if (recentTemp > olderTemp + 2) analytics.tempTrend = 'warming';
-            else if (recentTemp < olderTemp - 2) analytics.tempTrend = 'cooling';
-            else analytics.tempTrend = 'stable';
-        }
+			// Combine all feeds for global analytics
+			calculateAnalytics(feeds);
+		} catch (err) {
+			console.error('Error fetching analytics:', err);
+			error = err.message || 'Failed to load analytics data.';
+		} finally {
+			loading = false;
+		}
+	}
 
-        // Humidity analysis
-        const humidityValues = ordered.map(f => parseInt(f.field6) || 0).filter(v => v > 0);
-        if (humidityValues.length > 0) {
-            analytics.avgHumidity = Math.round(humidityValues.reduce((a, b) => a + b, 0) / humidityValues.length);
-            analytics.minHumidity = Math.min(...humidityValues);
-            analytics.maxHumidity = Math.max(...humidityValues);
-            
-            const recentHumidity = humidityValues.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, humidityValues.length);
-            const olderHumidity = humidityValues.slice(0, 10).reduce((a, b) => a + b, 0) / Math.min(10, humidityValues.length);
-            
-            if (recentHumidity > olderHumidity + 10) analytics.humidityTrend = 'wetting';
-            else if (recentHumidity < olderHumidity - 10) analytics.humidityTrend = 'drying';
-            else analytics.humidityTrend = 'stable';
-        }
-    }
+	function calculateAnalytics(feeds) {
+		if (!feeds || feeds.length === 0) return;
+
+		// Ensure sorted order oldest → newest
+		const ordered = [...feeds].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+		// Extract numeric fields
+		const moistureValues = ordered.map(f => parseInt(f.field1) || 0).filter(v => v > 0);
+		const pumpValues = ordered.map(f => parseInt(f.field2) || 0);
+		const tempValues = ordered.map(f => parseInt(f.field5) || 0).filter(v => v > 0);
+		const humidityValues = ordered.map(f => parseInt(f.field6) || 0).filter(v => v > 0);
+
+		analytics.totalReadings = ordered.length;
+
+		// Moisture calculations
+		if (moistureValues.length > 0) {
+			analytics.avgMoisture = Math.round(moistureValues.reduce((a, b) => a + b, 0) / moistureValues.length);
+			analytics.minMoisture = Math.min(...moistureValues);
+			analytics.maxMoisture = Math.max(...moistureValues);
+
+			const firstAvg = avg(moistureValues.slice(0, 10));
+			const lastAvg = avg(moistureValues.slice(-10));
+
+			if (lastAvg > firstAvg + 20) analytics.moistureTrend = 'drying';
+			else if (lastAvg < firstAvg - 20) analytics.moistureTrend = 'wetting';
+			else analytics.moistureTrend = 'stable';
+		}
+
+		// Pump stats
+		analytics.pumpActivations = pumpValues.filter(v => v === 1).length;
+		analytics.wateringFrequency = ((analytics.pumpActivations / analytics.totalReadings) * 100).toFixed(1);
+
+		// Temperature analysis
+		if (tempValues.length > 0) {
+			analytics.avgTemp = Math.round(avg(tempValues));
+			analytics.minTemp = Math.min(...tempValues);
+			analytics.maxTemp = Math.max(...tempValues);
+
+			const firstTemp = avg(tempValues.slice(0, 10));
+			const lastTemp = avg(tempValues.slice(-10));
+			if (lastTemp > firstTemp + 2) analytics.tempTrend = 'warming';
+			else if (lastTemp < firstTemp - 2) analytics.tempTrend = 'cooling';
+			else analytics.tempTrend = 'stable';
+		}
+
+		// Humidity analysis
+		if (humidityValues.length > 0) {
+			analytics.avgHumidity = Math.round(avg(humidityValues));
+			analytics.minHumidity = Math.min(...humidityValues);
+			analytics.maxHumidity = Math.max(...humidityValues);
+
+			const firstHum = avg(humidityValues.slice(0, 10));
+			const lastHum = avg(humidityValues.slice(-10));
+			if (lastHum > firstHum + 10) analytics.humidityTrend = 'wetting';
+			else if (lastHum < firstHum - 10) analytics.humidityTrend = 'drying';
+			else analytics.humidityTrend = 'stable';
+		}
+	}
+
+	function avg(arr) {
+		if (!arr || arr.length === 0) return 0;
+		return arr.reduce((a, b) => a + b, 0) / arr.length;
+	}
 </script>
 
 <svelte:head>
-    <title>Analytics - Smart Plant Watering System</title>
+	<title>Analytics - Smart Plant Watering System</title>
 </svelte:head>
 
-<div class="space-y-4 md:space-y-5">
-    <div>
-        <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent flex items-center gap-2">
-            📊 System Analytics
-        </h1>
-        <p class="text-sm md:text-base text-gray-600 mt-1.5">
-            Comprehensive analysis of your watering system performance
-        </p>
-    </div>
+<div class="space-y-5">
+	<div>
+		<h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent flex items-center gap-2">
+			📊 System Analytics
+		</h1>
+		<p class="text-sm text-gray-600 mt-1.5">Comprehensive analysis of all connected plants and environment.</p>
+	</div>
 
-    {#if loading}
-        <Card class="min-w-full shadow-md border border-gray-200">
-            <div class="text-center py-12">
-                <Spinner size="8" class="mx-auto mb-3" />
-                <p class="text-gray-600">Loading analytics data...</p>
-            </div>
-        </Card>
-    {:else}
-        <!-- Key Metrics Grid (Enhanced with Temperature & Humidity) -->
-        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
-            <!-- Existing Metrics -->
-            <Card class="min-w-full shadow-md border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">📈</div>
-                    <p class="text-xs text-gray-600 mb-1">Total Readings</p>
-                    <p class="text-xl md:text-2xl font-bold text-blue-900">{analytics.totalReadings}</p>
-                </div>
-            </Card>
+	{#if loading}
+		<Card class="min-w-full shadow-md border border-gray-200">
+			<div class="text-center py-12">
+				<Spinner size="8" class="mx-auto mb-3" />
+				<p class="text-gray-600">Loading analytics data...</p>
+			</div>
+		</Card>
+	{:else if error}
+		<Alert color="red" icon>
+			<strong>Error:</strong> {error}
+		</Alert>
+	{:else}
+		<!-- ============ Global Stats ============ -->
+		<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
+			{#each [
+				{ icon: '📈', label: 'Total Readings', value: analytics.totalReadings, color: 'blue' },
+				{ icon: '💧', label: 'Avg Moisture', value: analytics.avgMoisture, color: 'green' },
+				{ icon: '🔄', label: 'Pump Cycles', value: analytics.pumpActivations, color: 'purple' },
+				{ icon: '🌡️', label: 'Avg Temp', value: `${analytics.avgTemp}°C`, color: 'orange' },
+				{ icon: '💨', label: 'Avg Humidity', value: `${analytics.avgHumidity}%`, color: 'cyan' },
+				{ icon: '⚡', label: 'Frequency', value: `${analytics.wateringFrequency}%`, color: 'amber' }
+			] as stat}
+				<Card class="min-w-full shadow-md border border-{stat.color}-200 bg-gradient-to-br from-{stat.color}-50 to-{stat.color}-100">
+					<div class="text-center">
+						<div class="text-2xl mb-2">{stat.icon}</div>
+						<p class="text-xs text-gray-600 mb-1">{stat.label}</p>
+						<p class="text-xl md:text-2xl font-bold text-{stat.color}-900">{stat.value}</p>
+					</div>
+				</Card>
+			{/each}
+		</div>
 
-            <Card class="min-w-full shadow-md border border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">💧</div>
-                    <p class="text-xs text-gray-600 mb-1">Avg Moisture</p>
-                    <p class="text-xl md:text-2xl font-bold text-green-900">{analytics.avgMoisture}</p>
-                </div>
-            </Card>
+		<!-- ============ Plant-wise Analytics ============ -->
+		{#if plants.length > 1}
+			<Card class="min-w-full shadow-md border border-green-200 bg-gradient-to-br from-green-50 to-teal-50">
+				<h2 class="text-xl font-bold text-gray-900 mb-3">Plant-wise Summary</h2>
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+					{#each plants as plant}
+						<div class="p-3 bg-white rounded-lg border border-gray-200">
+							<p class="font-semibold text-green-700">{plant.name}</p>
+							<p class="text-xs text-gray-600 mb-1">{plant.readings.length} readings</p>
+							<p class="text-sm text-gray-700">
+								Moisture avg:
+								<span class="font-bold">
+									{Math.round(avg(plant.readings.map(f => parseInt(f.field1) || 0)))} 
+								</span>
+							</p>
+						</div>
+					{/each}
+				</div>
+			</Card>
+		{/if}
 
-            <Card class="min-w-full shadow-md border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">🔄</div>
-                    <p class="text-xs text-gray-600 mb-1">Pump Cycles</p>
-                    <p class="text-xl md:text-2xl font-bold text-purple-900">{analytics.pumpActivations}</p>
-                </div>
-            </Card>
+		<!-- ============ Detailed & Recommendations ============ -->
+		<Card class="min-w-full shadow-md border border-gray-200">
+			<h2 class="text-xl font-bold text-gray-900 mb-4">Detailed Statistics</h2>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+				<div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+					<p class="text-sm text-gray-600">Moisture Range</p>
+					<p class="text-lg font-bold">{analytics.minMoisture} - {analytics.maxMoisture}</p>
+					<Badge color="green" class="text-xs mt-2">
+						{analytics.moistureTrend === 'stable' ? '➡️ Stable' :
+						 analytics.moistureTrend === 'drying' ? '📈 Drying' : '📉 Wetting'}
+					</Badge>
+				</div>
 
-            <!-- NEW: Temperature -->
-            <Card class="min-w-full shadow-md border border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">🌡️</div>
-                    <p class="text-xs text-gray-600 mb-1">Avg Temp</p>
-                    <p class="text-xl md:text-2xl font-bold text-orange-900">{analytics.avgTemp}°C</p>
-                </div>
-            </Card>
+				<div class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+					<p class="text-sm text-gray-600">Temperature Range</p>
+					<p class="text-lg font-bold">{analytics.minTemp}°C - {analytics.maxTemp}°C</p>
+					<Badge color="orange" class="text-xs mt-2">
+						{analytics.tempTrend === 'warming' ? '📈 Warming' :
+						 analytics.tempTrend === 'cooling' ? '📉 Cooling' : '➡️ Stable'}
+					</Badge>
+				</div>
 
-            <!-- NEW: Humidity -->
-            <Card class="min-w-full shadow-md border border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">💧</div>
-                    <p class="text-xs text-gray-600 mb-1">Avg Humidity</p>
-                    <p class="text-xl md:text-2xl font-bold text-cyan-900">{analytics.avgHumidity}%</p>
-                </div>
-            </Card>
+				<div class="p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+					<p class="text-sm text-gray-600">Humidity Range</p>
+					<p class="text-lg font-bold">{analytics.minHumidity}% - {analytics.maxHumidity}%</p>
+					<Badge color="cyan" class="text-xs mt-2">
+						{analytics.humidityTrend === 'wetting' ? '📈 Wetting' :
+						 analytics.humidityTrend === 'drying' ? '📉 Drying' : '➡️ Stable'}
+					</Badge>
+				</div>
+			</div>
+		</Card>
 
-            <!-- Watering Frequency -->
-            <Card class="min-w-full shadow-md border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100">
-                <div class="text-center">
-                    <div class="text-2xl mb-2">⚡</div>
-                    <p class="text-xs text-gray-600 mb-1">Frequency</p>
-                    <p class="text-xl md:text-2xl font-bold text-amber-900">{analytics.wateringFrequency}%</p>
-                </div>
-            </Card>
-        </div>
+		<Card class="min-w-full shadow-md border border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50">
+			<h2 class="text-xl font-bold text-gray-900 mb-4">💡 Environmental Recommendations</h2>
+			<div class="space-y-2">
+				{#if analytics.avgTemp > 35}
+					<Alert color="red">🌡️ High temperature detected — provide shade or ventilation.</Alert>
+				{/if}
+				{#if analytics.avgTemp < 5}
+					<Alert color="blue">❄️ Very low temperature — consider adding heat or insulation.</Alert>
+				{/if}
+				{#if analytics.avgHumidity > 85}
+					<Alert color="orange">💧 High humidity — increase air circulation.</Alert>
+				{/if}
+				{#if analytics.avgHumidity < 30}
+					<Alert color="amber">🌵 Low humidity — mist plants or use humidifier.</Alert>
+				{/if}
+				{#if analytics.wateringFrequency > 50}
+					<Alert color="purple">🔄 Pump running too frequently — check threshold or leaks.</Alert>
+				{/if}
+				{#if analytics.avgTemp >= 15 && analytics.avgTemp <= 30 && analytics.avgHumidity >= 40 && analytics.avgHumidity <= 70}
+					<Alert color="green">✅ Ideal environmental conditions detected.</Alert>
+				{/if}
+			</div>
+		</Card>
 
-        <!-- Detailed Statistics -->
-        <Card class="min-w-full shadow-md border border-gray-200">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">Detailed Statistics</h2>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <!-- Moisture -->
-                <div class="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p class="text-sm text-gray-600 mb-1.5">Moisture Range</p>
-                    <p class="text-lg font-bold text-gray-900">{analytics.minMoisture} - {analytics.maxMoisture}</p>
-                    <Badge color="green" class="text-xs mt-2">
-                        {analytics.moistureTrend === 'stable' ? '➡️ Stable' : 
-                         analytics.moistureTrend === 'drying' ? '📈 Drying' : '📉 Wetting'}
-                    </Badge>
-                </div>
+		<Card class="min-w-full shadow-md border border-gray-200">
+			<h2 class="text-xl font-bold text-gray-900 mb-3">System Efficiency</h2>
+			<div class="space-y-3">
+				<div>
+					<div class="flex justify-between mb-1">
+						<span class="text-sm text-gray-700">Watering Efficiency</span>
+						<span class="text-sm font-bold text-green-600">
+							{analytics.wateringFrequency < 30 ? 'Excellent' :
+							 analytics.wateringFrequency < 50 ? 'Good' : 'Moderate'}
+						</span>
+					</div>
+					<Progressbar progress={Math.min(100, analytics.wateringFrequency * 2)} />
+				</div>
 
-                <!-- Temperature (NEW) -->
-                <div class="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <p class="text-sm text-gray-600 mb-1.5">Temperature Range</p>
-                    <p class="text-lg font-bold text-gray-900">{analytics.minTemp}°C - {analytics.maxTemp}°C</p>
-                    <Badge color="orange" class="text-xs mt-2">
-                        {analytics.tempTrend === 'stable' ? '➡️ Stable' : 
-                         analytics.tempTrend === 'warming' ? '📈 Warming' : '📉 Cooling'}
-                    </Badge>
-                </div>
-
-                <!-- Humidity (NEW) -->
-                <div class="p-3 bg-cyan-50 rounded-lg border border-cyan-200">
-                    <p class="text-sm text-gray-600 mb-1.5">Humidity Range</p>
-                    <p class="text-lg font-bold text-gray-900">{analytics.minHumidity}% - {analytics.maxHumidity}%</p>
-                    <Badge color="cyan" class="text-xs mt-2">
-                        {analytics.humidityTrend === 'stable' ? '➡️ Stable' : 
-                         analytics.humidityTrend === 'wetting' ? '📈 Wetting' : '📉 Drying'}
-                    </Badge>
-                </div>
-            </div>
-        </Card>
-
-        <!-- Environmental Recommendations (NEW) -->
-        <Card class="min-w-full shadow-md border border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                💡 Environmental Recommendations
-            </h2>
-            <div class="space-y-2.5">
-                {#if analytics.avgTemp > 35}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-red-500">
-                        <p class="font-semibold text-red-900 text-sm mb-1">🌡️ Temperature Alert</p>
-                        <p class="text-xs text-gray-700">Temperature is very high (avg {analytics.avgTemp}°C). Increase ventilation and provide shade.</p>
-                    </div>
-                {/if}
-
-                {#if analytics.avgTemp < 5}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-blue-500">
-                        <p class="font-semibold text-blue-900 text-sm mb-1">❄️ Cold Alert</p>
-                        <p class="text-xs text-gray-700">Temperature is very low (avg {analytics.avgTemp}°C). Consider adding heating.</p>
-                    </div>
-                {/if}
-
-                {#if analytics.avgHumidity > 85}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-orange-500">
-                        <p class="font-semibold text-orange-900 text-sm mb-1">💧 High Humidity</p>
-                        <p class="text-xs text-gray-700">Humidity is very high ({analytics.avgHumidity}%). Increase air circulation to prevent mold.</p>
-                    </div>
-                {/if}
-
-                {#if analytics.avgHumidity < 30}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-amber-500">
-                        <p class="font-semibold text-amber-900 text-sm mb-1">🌵 Dry Air</p>
-                        <p class="text-xs text-gray-700">Humidity is very low ({analytics.avgHumidity}%). Consider misting or using a humidifier.</p>
-                    </div>
-                {/if}
-
-                {#if analytics.wateringFrequency > 50}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-purple-500">
-                        <p class="font-semibold text-purple-900 text-sm mb-1">🔄 Frequent Watering</p>
-                        <p class="text-xs text-gray-700">Pump running frequently ({analytics.wateringFrequency}%). Check for leaks or adjust threshold.</p>
-                    </div>
-                {/if}
-
-                {#if analytics.avgTemp >= 15 && analytics.avgTemp <= 30 && analytics.avgHumidity >= 40 && analytics.avgHumidity <= 70}
-                    <div class="p-3 bg-white rounded-lg border-l-4 border-green-500">
-                        <p class="font-semibold text-green-900 text-sm mb-1">✅ Optimal Conditions</p>
-                        <p class="text-xs text-gray-700">Environmental conditions are perfect! Temperature and humidity are in optimal ranges.</p>
-                    </div>
-                {/if}
-            </div>
-        </Card>
-
-        <!-- System Efficiency -->
-        <Card class="min-w-full shadow-md border border-gray-200">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">System Efficiency</h2>
-            <div class="space-y-3">
-                <div>
-                    <div class="flex justify-between mb-1">
-                        <span class="text-sm font-medium text-gray-700">Watering Efficiency</span>
-                        <span class="text-sm font-bold text-green-600">{analytics.wateringFrequency < 30 ? 'Excellent' : analytics.wateringFrequency < 50 ? 'Good' : 'Moderate'}</span>
-                    </div>
-                    <Progressbar progress={Math.min(100, analytics.wateringFrequency * 2)} />
-                </div>
-                
-                <div>
-                    <div class="flex justify-between mb-1">
-                        <span class="text-sm font-medium text-gray-700">Climate Stability</span>
-                        <span class="text-sm font-bold text-blue-600">
-                            {analytics.tempTrend === 'stable' && analytics.humidityTrend === 'stable' ? 'Excellent' : 'Good'}
-                        </span>
-                    </div>
-                    <Progressbar progress={analytics.tempTrend === 'stable' && analytics.humidityTrend === 'stable' ? 100 : 75} />
-                </div>
-            </div>
-        </Card>
-    {/if}
+				<div>
+					<div class="flex justify-between mb-1">
+						<span class="text-sm text-gray-700">Climate Stability</span>
+						<span class="text-sm font-bold text-blue-600">
+							{analytics.tempTrend === 'stable' && analytics.humidityTrend === 'stable'
+								? 'Excellent'
+								: 'Good'}
+						</span>
+					</div>
+					<Progressbar progress={analytics.tempTrend === 'stable' && analytics.humidityTrend === 'stable' ? 100 : 75} />
+				</div>
+			</div>
+		</Card>
+	{/if}
 </div>
