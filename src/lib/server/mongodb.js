@@ -4,19 +4,23 @@
 // ==================================================
 
 import { MongoClient } from 'mongodb';
+import { env } from '$env/dynamic/private';
 
-const uri = process.env.MONGODB_URI;
+const uri = env.MONGODB_URI;
 if (!uri) {
-  throw new Error('MONGODB_URI environment variable not set');
+	throw new Error('❌ Missing MONGODB_URI environment variable');
 }
 
-// Reuse the client across lambda invocations
-if (!globalThis.__mongoClientPromise) {
-  const client = new MongoClient(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-  globalThis.__mongoClientPromise = client.connect();
+// Global cache to reuse the same client across invocations
+let cachedClient = globalThis._mongoClient;
+
+if (!cachedClient) {
+	const client = new MongoClient(uri);
+	cachedClient = client.connect();
+	globalThis._mongoClient = cachedClient;
 }
 
-export default globalThis.__mongoClientPromise;
+export async function getDb() {
+	const client = await cachedClient;
+	return client.db('smart_watering_system'); // your DB name
+}
