@@ -5,12 +5,11 @@
 // ==================================================
 
 import { json } from '@sveltejs/kit';
-import clientPromise from '$lib/server/mongodb.js';
+import { getDb } from '$lib/server/mongodb.js';
 
 export const GET = async () => {
   try {
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     const latest = await db
       .collection('readings')

@@ -5,14 +5,13 @@
 // ==================================================
 
 import { json } from '@sveltejs/kit';
-import clientPromise from '$lib/server/mongodb.js';
+import { getDb } from '$lib/server/mongodb.js';
 
 export const POST = async ({ request }) => {
   try {
     const body = await request.json();
 
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     // Insert telemetry into 'readings' collection
     const readingsColl = db.collection('readings');

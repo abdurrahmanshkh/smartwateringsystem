@@ -7,14 +7,13 @@
 // ==================================================
 
 import { json } from '@sveltejs/kit';
-import clientPromise from '$lib/server/mongodb.js';
+import { getDb } from '$lib/server/mongodb.js';
 
 const DEFAULT_SETTINGS = { threshold: 250, systemStatus: 0 };
 
 export const GET = async () => {
   try {
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     const settings = await db.collection('settings').findOne({ _id: 'singleton' });
     const merged = Object.assign({}, DEFAULT_SETTINGS, settings);
@@ -29,8 +28,7 @@ export const GET = async () => {
 export const POST = async ({ request }) => {
   try {
     const body = await request.json();
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     await db.collection('settings').updateOne(
       { _id: 'singleton' },
